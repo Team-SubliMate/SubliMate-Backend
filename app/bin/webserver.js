@@ -80,7 +80,7 @@ function quantity(num) {
 function handleEvt(ws, evt) {
 	switch(evt.type) {
 		case "NEW_CLIENT":
-			registerClient(evt.value);
+			registerClient(ws, evt.value);
 			break;
 		case "BARCODE_SCANNED":
 			lookupBarcode(evt.value);
