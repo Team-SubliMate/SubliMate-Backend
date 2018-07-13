@@ -59,6 +59,21 @@ function registerClient(ws, identifier) {
 	clients[identifier] = ws;
 }
 
+// TODO: have this actually create things
+function manual_entry(info) {
+	// do things with a manaul entry
+}
+
+// TODO: add the weight item to queue? how do we handle this?
+function weight_change(diff) {
+	weight_queue.push(diff);
+}
+
+// TODO: have barcodes handle quantity?
+function quantity(num) {
+	// take in a number and add it to the current thing
+}
+
 
 function handleEvt(ws, evt) {
 	switch(evt.type) {
@@ -67,6 +82,16 @@ function handleEvt(ws, evt) {
 			break;
 		case "BARCODE_SCANNED":
 			lookupBarcode(evt.value);
+			break;
+		case "MANUAL_ENTRY":
+			// may just pass in the event?
+			manual_entry(evt.value);
+			break;
+		case "WEIGHT_CHANGE":
+			weight_change(evt.value);
+			break;
+		case "QUANTITY":
+			handle_quantity(evt.value);
 			break;
 	}
 }
