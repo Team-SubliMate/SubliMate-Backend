@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+const db = require('../db')
 
 /* GET API page. */
 router.get('/', function(req, res, next) {
@@ -14,16 +15,12 @@ router.get('/', function(req, res, next) {
 
 router.get('/inventory', function(req, res, next) {
   // TODO: Retrieve data from database and send as json
-  var testData = {
-    data: {
-      items: [
-        {name: "apple", quantity: 4},
-        {name: "banana", quantity: 3}
-      ]
+  db.query('SELECT * FROM items', function(err, result) {
+    if (err) {
+      return next(err)
     }
-  };
-
-  res.json(testData);
+    res.json(result.rows)
+  })
 });
 
 module.exports = router;
