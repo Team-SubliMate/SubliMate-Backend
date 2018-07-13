@@ -34,6 +34,7 @@ const wss = new WebSocket.Server({port: 8090});
 
 const clients = {};
 
+// TODO: put the created item in a socket
 function lookupBarcode(upc) {
 	https.get('https://api.upcitemdb.com/prod/trial/lookup?upc=' + upc, (resp) => {
 		let data = "";
@@ -59,12 +60,14 @@ function registerClient(ws, identifier) {
 	clients[identifier] = ws;
 }
 
-// TODO: have this actually create things
+// TODO: have this actually create things and put item into queue
 function manual_entry(info) {
 	// do things with a manaul entry
 }
 
-// TODO: add the weight item to queue? how do we handle this?
+// TODO: check weight value
+// if up, then check for item information
+// if down, check database for things and whatever
 function weight_change(diff) {
 	weight_queue.push(diff);
 }
@@ -73,7 +76,6 @@ function weight_change(diff) {
 function quantity(num) {
 	// take in a number and add it to the current thing
 }
-
 
 function handleEvt(ws, evt) {
 	switch(evt.type) {
@@ -90,6 +92,7 @@ function handleEvt(ws, evt) {
 		case "WEIGHT_CHANGE":
 			weight_change(evt.value);
 			break;
+		// TODO: do we need this?
 		case "QUANTITY":
 			handle_quantity(evt.value);
 			break;
