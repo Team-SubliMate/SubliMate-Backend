@@ -18,19 +18,19 @@ setInterval( function() {
 	console.log(msg);
 }, 1000);
 */
-const fs = require('fs');
+//const fs = require('fs');
 const WebSocket = require('ws');
 const https = require('https');
 
 //const server = new https.createServer({
 
-const server = new https.createServer({
+/*const server = new https.createServer({
 	cert: fs.readFileSync('/home/pi/cert.pem'),
 	key: fs.readFileSync('/home/pi/key.pem'),
 	passphrase: "sublimate"
-});
+});*/
 
-const wss = new WebSocket.Server({server});
+const wss = new WebSocket.Server({port: 8090});
 
 const clients = {};
 
@@ -109,7 +109,7 @@ wss.on('connection', function connection(ws) {
 	});*/
 });
 
-server.listen(8080);
+//server.listen(8080);
 /*
 setInterval( function() {
 	var msg = Math.random();
