@@ -6,7 +6,10 @@ const rl = readline.createInterface({
 	output: process.stdout
 });
 
-var item_queue = []
+const weight_error = 20;
+
+var item_added_queue = []
+var item_removed_queue = []
 
 // TODO: the shelfId 1 would need to change
 const insert_text = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry)' +
@@ -15,16 +18,14 @@ const insert_text = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantit
 function put_database(product, weight, quantity){
 	// TODO: the 1 in this query would need to be a shelfId
 	// Need these calls to be synchornous, so have to put the next ones into the callback
-	// its kind of gross but what else can we do?
+	// its kind of gross but what else can we do? =>
+	// => make a stored procedure?
 	db.query('SELECT * FROM GetNextItemId(1)')
 		.then(res => {
-			console.log('Now inside the item id')
-			console.log(res.rows[0]['getnextitemid'])
 			itemId = res.rows[0]
 			db.query(insert_text, [ res.rows[0]['getnextitemid'], product, weight, quantity, new Date()])
 				.then( res => {
 					//do stuff if we need to
-					console.log('We made it to the insert!')
 				})
 				.catch(e => {
 					console.error(e.stack)
@@ -35,21 +36,45 @@ function put_database(product, weight, quantity){
 		})
 }
 
+function update_item_weight(item, weight) {
+    db.query('update items set weight = $1 where shelfid = $2 and itemid = $3', [weight, item.shelfid, item.itemid], function(err, res) {
+        if (err) {
+            console.log('Error here')
+            console.log(err)
+            return next(err) // i dont think this works as intended
+        }
+        //console.log(res.fields.map(f => f.name)) //list fields
+        //console.log(res.rows[0])
+        console.log(res.rows)
+    })
+}
+
 function get_items(){
 	db.query('SELECT * FROM items', function(err, res) {
     	if (err) {
     		console.log('Error here')
-      		return next(err)
+			console.log(err)
+      		return next(err) // i dont think this works as intended
     	}
-    	console.log(res.fields.map(f => f.name))
-    	console.log(res.rows[0])
+    	//console.log(res.fields.map(f => f.name)) //list fields
+    	//console.log(res.rows[0])
     	console.log(res.rows)
  	})
 }
 
+function get_items_near_weight(weight){
+	db.query('SELECT * FROM items where weight between $1 and $2', [weight - weight_error, weight + weight_error])
+		.then(res => {
+        	//console.log(res.rows)
+			remove_item(weight, res.rows)
+    	})
+		.catch(e => console.error(e.stack))
+}
+
 // TODO: have this actually create things and put item into queue
 function manual_entry(product, quantity) {
-	item_queue.push(['product' : product, 'quantity' : quantity])
+    item_added_queue.push({'product': product, 'quantity': quantity})
+	console.log(item_added_queue)
 }
 
 // TODO: check weight value
@@ -58,32 +83,50 @@ function manual_entry(product, quantity) {
 function weight_change(difference) {
 	var weight = parseInt(difference)
 
+	// item added
 	if (weight > 0){
-		if (item_queue.size < 1){
-			console.log('Made a mistake! doing nothing in quantity')
-			return
+		if (item_removed_queue.length == 1) {
+            var item = item_removed_queue.pop()
+            update_item_weight(item, weight)
+		} else {
+            if (item_added_queue.length < 1){
+                console.log('Made a mistake! weight change without an item manually added')
+                return
+            }
+            var item = item_added_queue.pop()
+            console.log(item)
+            put_database(item.product, weight, item.quantity)
 		}
-		var item = item_queue.pop()
-		put_database(item[0], weight, item[1])
 	}
 	else if (weight < 0){
-		remove_item(abs(weight))
+		get_items_near_weight(Math.abs(weight))
 	}
 }
 
-function remove_item(weight){
+function remove_item(weight, nearby_items){
 	// do something here. Remove the item or return a list if possible
+	if (nearby_items.length < 1) {
+        console.log('no items found')
+	}
+	if (nearby_items.length == 1) {
+    	console.log('only one matching item')
+    	item_removed_queue.push(nearby_items[0])
+	}
+	if (nearby_items.length > 1) {
+    	//TODO send the choices to the android
+    	console.log('multiple items found')
+	}
 }
 
 // TODO: have barcodes handle quantity?
 function quantity(num) {
 	// take in a number and add it to the current item
-	if (item_queue.size < 1){
+	if (item_added_queue.length < 1){
 		console.log('Made a mistake! doing nothing in quantity')
 		return
 	}
-	var item = item_queue.pop()
-	item_queue.push(['product' : item['product'], 'quantity' : num])
+	var item = item_added_queue.pop()
+    item_added_queue.push({'product': item['product'], 'quantity' : num})
 }
 
 
@@ -121,7 +164,8 @@ rl.on('line', (input) => {
 			get_items()
 			break;
 		case 'weight':
-			console.log(split[1])
+			//console.log(split[1])
+            weight_change(split[1])
 			break;
 		case 'barcode':
 			console.log(split[1])
@@ -132,7 +176,6 @@ rl.on('line', (input) => {
 				break;
 			}
 			manual_entry(split[1], split[2])
-			console.log(split[1])
 			break;
 		case 'put':
 			if (split.length != 4){
