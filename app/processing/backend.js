@@ -65,7 +65,7 @@ function getItems(){
 }
 
 function getItemsNearWeight(weight){
-	db.query('SELECT * FROM items where removedat IS NULL and weight between $1 and $2', [weight * (1 - WEIGHT_ERROR), weight *  (1 + WEIGHT_ERROR])
+	db.query('SELECT * FROM items where removedat IS NULL and weight between $1 and $2', [weight * (1 - WEIGHT_ERROR), weight *  (1 + WEIGHT_ERROR)])
 		.then(res => {
 			removeItem(weight, res.rows)
   	})
