@@ -14,13 +14,55 @@ router.get('/', function(req, res, next) {
 });
 
 router.get('/inventory', function(req, res, next) {
+  const mock = {
+    items: [
+      {
+        "shelfid":1,
+        "itemid":1,
+        "weight":150,
+        "product":"Test",
+        "quantity":2,
+        "entry":"2018-07-13T04:00:00.000Z",
+        "bestbefore":null,
+        "removedat":null
+      },
+      {
+        "shelfid":1,
+        "itemid":2,
+        "weight":120,
+        "product":"Test2",
+        "quantity":1,
+        "entry":"2018-07-13T04:00:00.000Z",
+        "bestbefore":null,
+        "removedat":null
+      },
+      {
+        "shelfid":1,
+        "itemid":3,
+        "weight":50,
+        "product":"Test75",
+        "quantity":2,
+        "entry":"2018-07-13T04:00:00.000Z",
+        "bestbefore":null,
+        "removedat":null
+      }
+    ]
+  };
+
   // TODO: Retrieve data from database and send as json
   db.query('SELECT * FROM items', function(err, result) {
     if (err) {
-      return next(err)
+      console.log("Error in DB: " + err);
+      res.json(mock);
+      return;
     }
-    res.json(result.rows)
-  })
+
+    var data = {
+      items: result.rows
+    };
+
+    res.json(data);
+  });
 });
 
 module.exports = router;
