@@ -64,10 +64,10 @@ function getItems(){
  	})
 }
 
-function getItemsNearWeight(weight){
+function getItemsNearWeight(weight, ws){
 	db.query('SELECT * FROM items where removedat IS NULL and weight between $1 and $2', [weight * (1 - WEIGHT_ERROR), weight *  (1 + WEIGHT_ERROR)])
 		.then(res => {
-			removeItem(weight, res.rows)
+			nearbyItems(res.rows, ws)
   	})
 		.catch(e => console.error(e.stack))
 }
@@ -80,7 +80,7 @@ function manualEntry(item) {
 // TODO: check weight value
 // if up, then check for item information
 // if down, check database for things and whatever
-function weightChange(difference) {
+function weightChange(difference, ws) {
 	var weight = parseInt(difference)
 
 	// item added
@@ -110,11 +110,11 @@ function weightChange(difference) {
 		}
 	}
 	else if (weight < 0){
-		getItemsNearWeight(Math.abs(weight))
+		getItemsNearWeight(Math.abs(weight), ws)
 	}
 }
 
-function removeItem(weight, nearbyItems){
+function nearbyItems(nearbyItems, ws){
 	// do something here. Remove the item or return a list if possible
 	if (nearbyItems.length < 1) {
         console.log('no items found')
@@ -123,12 +123,22 @@ function removeItem(weight, nearbyItems){
     	console.log('only one matching item')
     	itemRemovedQueue.push(nearbyItems[0])
     	updateRemovalTime(nearbyItems[0], false)
+      //send to android that we removed one item
+      ws.send({'type': 'ITEM_REMOVED','value': nearbyItems[0].itemid})
 	}
 	if (nearbyItems.length > 1) {
     	//TODO send the choices to the android
     	console.log('multiple items found')
-      //
+      ws.send({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)})
 	}
+}
+
+function removeItem(itemId, ws) {
+  db.query('SELECT * FROM items where itemid = $1', itemId)
+    .then(res => {
+      nearbyItems(res.rows, ws)
+    })
+    .catch(e => console.error(e.stack))
 }
 
 // TODO: have barcodes handle quantity?
@@ -149,13 +159,16 @@ module.exports = {
 	manualEntry: (item) => {
 		manualEntry(item)
 	},
-	processWeightChange: (difference) => {
-		weightChange(difference)
+	processWeightChange: (difference, ws) => {
+		weightChange(difference, ws)
 	},
 	getItemList: () => {
 		getItems()
 	},
 	addItem: (product, weight, quantity) => {
 		putDatabase(product, weight, quantity)
-	}
+	},
+  removeItem: (itemId, ws) => {
+    removeItem(itemId, ws)
+  }
 }
