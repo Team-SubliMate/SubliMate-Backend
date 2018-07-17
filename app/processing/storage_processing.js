@@ -68,7 +68,7 @@ function update_item_weight(item, weight) {
 
 //TODO: this should really return a list of them, but it doesnt yet
 function get_items(){
-	db.query('SELECT * FROM items', function(err, res) {
+	db.query('SELECT * FROM items WHERE removedat IS NULL', function(err, res) {
     	if (err) {
     		console.log('Error here')
 			console.log(err)
@@ -81,7 +81,7 @@ function get_items(){
 }
 
 function get_items_near_weight(weight){
-	db.query('SELECT * FROM items where weight between $1 and $2', [weight - weight_error, weight + weight_error])
+	db.query('SELECT * FROM items where weight between $1 and $2 WHERE removedat IS NULL', [weight - weight_error, weight + weight_error])
 		.then(res => {
         	//console.log(res.rows)
 			remove_item(weight, res.rows)
