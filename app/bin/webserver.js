@@ -22,6 +22,8 @@ setInterval( function() {
 const WebSocket = require('ws');
 const https = require('https');
 
+const backend = require('../processing/backend.js');
+
 //const server = new https.createServer({
 
 /*const server = new https.createServer({
@@ -47,6 +49,7 @@ function lookupBarcode(upc) {
 			try {
 				barcodeData = JSON.parse(data);
 				console.log(barcodeData.items[0].title);
+				backend.manualEntry({'product': barcodeData.items[0].title, 'quantity': '1'});
 			} catch (err) {
 				console.log(err.message);
 			}
@@ -60,23 +63,6 @@ function registerClient(ws, identifier) {
 	clients[identifier] = ws;
 }
 
-// TODO: have this actually create things and put item into queue
-function manual_entry(info) {
-	// do things with a manaul entry
-}
-
-// TODO: check weight value
-// if up, then check for item information
-// if down, check database for things and whatever
-function weight_change(diff) {
-	weight_queue.push(diff);
-}
-
-// TODO: have barcodes handle quantity?
-function quantity(num) {
-	// take in a number and add it to the current thing
-}
-
 function handleEvt(ws, evt) {
 	switch(evt.type) {
 		case "NEW_CLIENT":
@@ -87,10 +73,10 @@ function handleEvt(ws, evt) {
 			break;
 		case "MANUAL_ENTRY":
 			// may just pass in the event?
-			manual_entry(evt.value);
+			backend.manualEntry(evt.value);
 			break;
 		case "WEIGHT_CHANGE":
-			weight_change(evt.value);
+			backend.processWeightChange(evt.value);
 			break;
 		// TODO: do we need this?
 		case "QUANTITY":
