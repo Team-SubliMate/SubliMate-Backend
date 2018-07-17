@@ -36,6 +36,23 @@ function put_database(product, weight, quantity){
 		})
 }
 
+function update_removal_time(item, set_null) {
+	var d = new Date()
+	if (set_null){
+		d = null
+	}
+	db.query('update items set removedat = $1 where shelfid = $2 and itemid = $3', [d, item.shelfid, item.itemid], function(err, res) {
+        if (err) {
+            console.log('Error here')
+            console.log(err)
+            return next(err) // i dont think this works as intended
+        }
+        //console.log(res.fields.map(f => f.name)) //list fields
+        //console.log(res.rows[0])
+        console.log(res.rows)
+    })
+}
+
 function update_item_weight(item, weight) {
     db.query('update items set weight = $1 where shelfid = $2 and itemid = $3', [weight, item.shelfid, item.itemid], function(err, res) {
         if (err) {
@@ -49,6 +66,7 @@ function update_item_weight(item, weight) {
     })
 }
 
+//TODO: this should really return a list of them, but it doesnt yet
 function get_items(){
 	db.query('SELECT * FROM items', function(err, res) {
     	if (err) {
@@ -88,6 +106,7 @@ function weight_change(difference) {
 		if (item_removed_queue.length == 1) {
             var item = item_removed_queue.pop()
             update_item_weight(item, weight)
+            update_removal_time(item, true)
 		} else {
             if (item_added_queue.length < 1){
                 console.log('Made a mistake! weight change without an item manually added')
@@ -111,6 +130,7 @@ function remove_item(weight, nearby_items){
 	if (nearby_items.length == 1) {
     	console.log('only one matching item')
     	item_removed_queue.push(nearby_items[0])
+    	update_removal_time(nearby_items[0], false)
 	}
 	if (nearby_items.length > 1) {
     	//TODO send the choices to the android
@@ -129,7 +149,25 @@ function quantity(num) {
     item_added_queue.push({'product': item['product'], 'quantity' : num})
 }
 
-
+// Below are module items. These are taken from the functions above
+// There is a debug item for now just to test things.
+module.exports = {
+	add_quantity: (num) => {
+		quantity(num)
+	},
+	add_manual: (product, quantity) => {
+		manual_entry(product, quantity)
+	},
+	process_weight_change: (difference) => {
+		weight_change(difference)
+	},
+	get_item_list: () => {
+		get_items()
+	},
+	debug_add_item: (product, weight, quantity) => {
+		put_database(product, weight, quantity)
+	}
+}
 
 /*function splitString(stringToSplit, separator) {
 	var arrayOfStrings = stringToSplit.split(separator);
