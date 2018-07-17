@@ -89,7 +89,18 @@ function weightChange(difference) {
       var item = itemRemovedQueue.pop()
       updateItemWeight(item, weight)
       updateRemovalTime(item, true)
-		} else {
+		} else if (itemRemovedQueue.length > 1) {
+      //multiple items removed, re-adding one of the removed items
+      var item = itemRemovedQueue[0];
+      for (var i = 0; i < itemRemovedQueue.length; i++) {
+        if (Math.abs(itemRemovedQueue[i].weight - difference) < Math.abs(item.weight - difference)) {
+          item = itemRemovedQueue[i];
+        }
+      }
+      updateItemWeight(item, weight);
+      updateRemovalTime(item, true);
+      itemRemovedQueue.splice(itemRemovedQueue.indexOf(item),1);
+    } else {
       if (itemAddedQueue.length < 1){
         console.log('Made a mistake! weight change without an item manually added')
         return
