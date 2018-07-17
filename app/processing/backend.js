@@ -1,6 +1,6 @@
 const db = require('../db');
 
-const WEIGHT_ERROR = 20;
+const WEIGHT_ERROR = 0.05;
 
 var itemAddedQueue = []
 var itemRemovedQueue = []
@@ -65,7 +65,7 @@ function getItems(){
 }
 
 function getItemsNearWeight(weight){
-	db.query('SELECT * FROM items where removedat IS NULL and weight between $1 and $2', [weight - WEIGHT_ERROR, weight + WEIGHT_ERROR])
+	db.query('SELECT * FROM items where removedat IS NULL and weight between $1 and $2', [weight * (1 - WEIGHT_ERROR), weight *  (1 + WEIGHT_ERROR])
 		.then(res => {
 			removeItem(weight, res.rows)
   	})
@@ -116,6 +116,7 @@ function removeItem(weight, nearbyItems){
 	if (nearbyItems.length > 1) {
     	//TODO send the choices to the android
     	console.log('multiple items found')
+      //
 	}
 }
 
