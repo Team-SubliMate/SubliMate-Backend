@@ -9,15 +9,17 @@ var itemRemovedQueue = []
 const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry)' +
 					'Values (1, $1, $2, $3, $4, $5);'
 
-function putDatabase(product, weight, quantity){
+function putDatabase(product, weight, quantity, ws){
 	// TODO: the 1 in this query would need to be a shelfId
 	// Need these calls to be synchornous, so have to put the next ones into the callback
 	// its kind of gross but what else can we do? =>
 	// => make a stored procedure?
 	db.query('SELECT * FROM GetNextItemId(1)')
 		.then(res => {
-			itemId = res.rows[0];
-			db.query(INSERT_TEXT, [ res.rows[0]['getnextitemid'], product, weight, quantity, new Date()]);
+      var itemId = res.rows[0]['getnextitemid'];
+      var date = new Date();
+			db.query(INSERT_TEXT, [itemId, product, weight, quantity, date]);
+      ws.send({'type': 'ITEM_ADDED','value': {'shelfid': 1, 'itemId': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date}});
 		})
 		.catch(e => {
 			console.error(e.stack);
@@ -64,6 +66,10 @@ function getItems(){
  	})
 }
 
+function getItem(itemId) {
+  return db.query('SELECT * FROM items WHERE ItemId = $1', itemid);
+}
+
 function getItemsNearWeight(weight, ws){
 	db.query('SELECT * FROM items where removedat IS NULL and weight between $1 and $2', [weight * (1 - WEIGHT_ERROR), weight *  (1 + WEIGHT_ERROR)])
 		.then(res => {
@@ -86,6 +92,7 @@ function weightChange(difference, ws) {
 	// item added
 	if (weight > 0){
 		if (itemRemovedQueue.length == 1) {
+      //updating weight on last removed item
       var item = itemRemovedQueue.pop()
       updateItemWeight(item, weight)
       updateRemovalTime(item, true)
@@ -105,13 +112,21 @@ function weightChange(difference, ws) {
         console.log('Made a mistake! weight change without an item manually added')
         return
       }
-      var item = itemAddedQueue.pop()
-      putDatabase(item.product, weight, item.quantity)
+      var itemInfo = itemAddedQueue.pop()
+      putDatabase(itemInfo.product, weight, itemInfo.quantity, ws)
 		}
 	}
 	else if (weight < 0){
 		getItemsNearWeight(Math.abs(weight), ws)
 	}
+}
+
+function tieBroke(itemId) {
+  getItem(itemid)
+    .then(res => {
+      itemRemovedQueue.push(res);
+      updateRemovalTime(res, false);
+    })
 }
 
 function nearbyItems(nearbyItems, ws){
@@ -166,7 +181,7 @@ module.exports = {
 		getItems()
 	},
 	addItem: (product, weight, quantity) => {
-		putDatabase(product, weight, quantity)
+		putDatabase(product, weight, quantity, ws)
 	},
   removeItem: (itemId, ws) => {
     removeItem(itemId, ws)
