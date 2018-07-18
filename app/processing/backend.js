@@ -68,10 +68,6 @@ function getItems(){
  	})
 }
 
-function getItem(itemId) {
-  return db.query('SELECT * FROM items WHERE ItemId = $1', itemid);
-}
-
 function getItemsNearWeight(weight, ws){
 	db.query('SELECT * FROM items where removedat IS NULL and weight between $1 and $2', [weight * (1 - WEIGHT_ERROR), weight *  (1 + WEIGHT_ERROR)])
 		.then(res => {
@@ -125,12 +121,13 @@ function weightChange(difference, ws) {
 }
 
 function itemRemoved(itemId, ws) {
-  getItem(itemid)
+  db.query('SELECT * FROM items WHERE ItemId = $1', itemid)
     .then(res => {
-      itemRemovedQueue.push(res);
-      updateRemovalTime(res, false);
+      itemRemovedQueue.push(res.rows[0]);
+      updateRemovalTime(res.rows[0], false);
       ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': itemid}))
     })
+    .catch(e => console.error(e.stack))
 }
 
 function nearbyItems(nearbyItems, ws){
@@ -139,16 +136,16 @@ function nearbyItems(nearbyItems, ws){
         console.log('no items found')
 	}
 	if (nearbyItems.length == 1) {
-    	console.log('only one matching item')
-    	itemRemovedQueue.push(nearbyItems[0])
-    	updateRemovalTime(nearbyItems[0], false)
-      //send to android that we removed one item
-      ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': nearbyItems[0].itemid}))
+  	console.log('only one matching item')
+  	itemRemovedQueue.push(nearbyItems[0])
+  	updateRemovalTime(nearbyItems[0], false)
+    //send to android that we removed one item
+    ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': nearbyItems[0].itemid}))
 	}
 	if (nearbyItems.length > 1) {
-    	//TODO send the choices to the android
-    	console.log('multiple items found')
-      ws.send(JSON.stringify({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)}))
+  	//TODO send the choices to the android
+  	console.log('multiple items found')
+    ws.send(JSON.stringify({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)}))
 	}
 }
 
