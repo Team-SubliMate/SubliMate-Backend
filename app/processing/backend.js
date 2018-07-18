@@ -121,11 +121,11 @@ function weightChange(difference, ws) {
 }
 
 function itemRemoved(itemId, ws) {
-  db.query('SELECT * FROM items WHERE ItemId = $1', itemid)
+  db.query('SELECT * FROM items WHERE ItemId = $1', itemId)
     .then(res => {
       itemRemovedQueue.push(res.rows[0]);
       updateRemovalTime(res.rows[0], false);
-      ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': itemid}))
+      ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': itemId}))
     })
     .catch(e => console.error(e.stack))
 }
