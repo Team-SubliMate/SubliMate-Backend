@@ -76,7 +76,7 @@ function handleEvt(ws, evt) {
 			backend.manualEntry(evt.value);
 			break;
 		case "WEIGHT_CHANGED":
-			backend.processWeightChange(evt.value);
+			backend.processWeightChange(evt.value, clients["android"]);
 			break;
 		// TODO: do we need this?
 		case "THIS_ITEM_REMOVED":

@@ -18,8 +18,8 @@ function putDatabase(product, weight, quantity, ws){
 		.then(res => {
       var itemId = res.rows[0]['getnextitemid'];
       var date = new Date();
-      var item = {'shelfid': 1, 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date};
-			ws.send({'type': 'ITEM_ADDED','value': item});
+      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date};
+			ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
       db.query(INSERT_TEXT, [itemId, product, weight, quantity, date]);
 		})
 		.catch(e => {
@@ -140,12 +140,12 @@ function nearbyItems(nearbyItems, ws){
     	itemRemovedQueue.push(nearbyItems[0])
     	updateRemovalTime(nearbyItems[0], false)
       //send to android that we removed one item
-      ws.send({'type': 'ITEM_REMOVED','value': nearbyItems[0].itemid})
+      ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': nearbyItems[0].itemid}))
 	}
 	if (nearbyItems.length > 1) {
     	//TODO send the choices to the android
     	console.log('multiple items found')
-      ws.send({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)})
+      ws.send(JSON.stringify({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)}))
 	}
 }
 
