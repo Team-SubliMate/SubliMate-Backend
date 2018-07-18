@@ -18,8 +18,9 @@ function putDatabase(product, weight, quantity, ws){
 		.then(res => {
       var itemId = res.rows[0]['getnextitemid'];
       var date = new Date();
-			db.query(INSERT_TEXT, [itemId, product, weight, quantity, date]);
-      ws.send({'type': 'ITEM_ADDED','value': {'shelfid': 1, 'itemId': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date}});
+      var item = {'shelfid': 1, 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date};
+			ws.send({'type': 'ITEM_ADDED','value': item});
+      db.query(INSERT_TEXT, [itemId, product, weight, quantity, date]);
 		})
 		.catch(e => {
 			console.error(e.stack);
