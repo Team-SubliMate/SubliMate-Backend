@@ -43,16 +43,17 @@ function updateRemovalTime(item, setNull) {
 }
 
 function updateItemWeight(item, weight) {
-    db.query('update items set weight = $1 where shelfid = $2 and itemid = $3', [weight, item.shelfid, item.itemid], function(err, res) {
-        if (err) {
-            console.log('Error here')
-            console.log(err)
-            return next(err) // i dont think this works as intended
-        }
-        //console.log(res.fields.map(f => f.name)) //list fields
-        //console.log(res.rows[0])
-        console.log(res.rows)
-    })
+  item.weight = weight;
+  db.query('update items set weight = $1 where shelfid = $2 and itemid = $3', [weight, item.shelfid, item.itemid], function(err, res) {
+      if (err) {
+          console.log('Error here')
+          console.log(err)
+          return next(err) // i dont think this works as intended
+      }
+      //console.log(res.fields.map(f => f.name)) //list fields
+      //console.log(res.rows[0])
+      console.log(res.rows)
+  })
 }
 
 //TODO: this should really return a list of them, but it doesnt yet
@@ -97,6 +98,7 @@ function weightChange(difference, ws) {
       var item = itemRemovedQueue.pop()
       updateItemWeight(item, weight)
       updateRemovalTime(item, true)
+      ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
 		} else if (itemRemovedQueue.length > 1) {
       //multiple items removed, re-adding one of the removed items
       var item = itemRemovedQueue[0];
@@ -122,11 +124,12 @@ function weightChange(difference, ws) {
 	}
 }
 
-function tieBroke(itemId) {
+function itemRemoved(itemId, ws) {
   getItem(itemid)
     .then(res => {
       itemRemovedQueue.push(res);
       updateRemovalTime(res, false);
+      ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': itemid}))
     })
 }
 
@@ -184,7 +187,7 @@ module.exports = {
 	addItem: (product, weight, quantity) => {
 		putDatabase(product, weight, quantity, ws)
 	},
-  removeItem: (itemId, ws) => {
-    removeItem(itemId, ws)
+  itemRemoved: (itemId, ws) => {
+    itemRemoved(itemId, ws)
   }
 }

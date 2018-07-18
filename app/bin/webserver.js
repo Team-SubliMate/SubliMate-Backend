@@ -80,7 +80,7 @@ function handleEvt(ws, evt) {
 			break;
 		// TODO: do we need this?
 		case "THIS_ITEM_REMOVED":
-			
+			itemRemoved(evt.value, clients["android"]);
 			break;
 		case "QUANTITY":
 			handle_quantity(evt.value);
