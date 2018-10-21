@@ -1,4 +1,4 @@
-
+const tests = require('./unit_tests.js');
 
 var tests_passed = 0;
 var tests_failed = 0;
@@ -23,14 +23,15 @@ function recap_failed_tests() {
 
 function test_test() {
 	console.log("I am a test");
-	//return true;
+	return true;
 }
 
 console.log("Beginning to run tests...");
 
 run_test(test_test, "Testing test");
+run_test(tests.AddItem, "Hello There!");
 
-console.log("#########################")
-console.log("#########################")
+console.log("#########################");
+console.log("#########################");
 recap_failed_tests();
 
