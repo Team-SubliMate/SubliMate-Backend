@@ -8,8 +8,8 @@ const rl = readline.createInterface({
 
 const weight_error = 20;
 
-var item_added_queue = []
-var item_removed_queue = []
+var item_added_queue = [];
+var item_removed_queue = [];
 
 // TODO: the shelfId 1 would need to change
 const insert_text = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry)' +
@@ -22,13 +22,13 @@ function put_database(product, weight, quantity){
 	// => make a stored procedure?
 	db.query('SELECT * FROM GetNextItemId(1)')
 		.then(res => {
-			itemId = res.rows[0]
+			itemId = res.rows[0];
 			db.query(insert_text, [ res.rows[0]['getnextitemid'], product, weight, quantity, new Date()])
 				.then( res => {
 					//do stuff if we need to
 				})
 				.catch(e => {
-					console.error(e.stack)
+					console.error(e.stack);
 				})
 		})
 		.catch(e => {
