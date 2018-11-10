@@ -29,7 +29,8 @@ function test_test() {
 console.log("Beginning to run tests...");
 
 run_test(test_test, "Testing test");
-run_test(tests.AddItem, "Hello There!");
+//run_test(tests.AddItem, "What?");
+run_test(tests.TestReset, "Hello There!");
 
 console.log("#########################");
 console.log("#########################");

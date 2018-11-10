@@ -29,7 +29,13 @@ function addItem(){
 	
 }
 
+function testReset(){
+	db.ResetAndPopulateDb();
+	return true;
+}
+
 module.exports.AddItem = addItem;
+module.exports.TestReset = testReset;
 
 /*module.exports = {
 	addItem: () => {
