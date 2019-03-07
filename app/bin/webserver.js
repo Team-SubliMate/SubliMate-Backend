@@ -63,6 +63,19 @@ function registerClient(ws, identifier) {
 	clients[identifier] = ws;
 }
 
+handleEvents = true;
+
+function handleEvent(ws, evt) {
+	if (handleEvents) {
+		handleEvt(ws, evt);
+	}
+	else {
+		if (evt.type == 'START_HANDLING'){
+			handleEvents = true;
+		}
+	}
+}
+
 function handleEvt(ws, evt) {
 	switch(evt.type) {
 		case "NEW_CLIENT":
@@ -84,6 +97,9 @@ function handleEvt(ws, evt) {
 			break;
 		case "QUANTITY":
 			handle_quantity(evt.value);
+			break;
+		case "STOP_HANDLING":
+			handleEvents = false;
 			break;
 	}
 }

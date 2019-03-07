@@ -24,7 +24,40 @@ function putDatabase(product, weight, quantity, ws){
 		})
 		.catch(e => {
 			console.error(e.stack);
-		})
+		});
+}
+
+function incrementItemQuantity(item) {
+  db.query('update items set quantity = quantity + 1 where shelfid = $1 and itemid = $2', [item.shelfid, item.itemid], function(err, res) {
+    if (err) {
+          console.log('Error here')
+          console.log(err)
+          return next(err)
+      }
+      console.log(res.rows)
+  });
+}
+
+function decrementItemQuantity(item) {
+  db.query('update items set quantity = quantity - 1 where shelfid = $1 and itemid = $2', [item.shelfid, item.itemid], function(err, res) {
+    if (err) {
+          console.log('Error here')
+          console.log(err)
+          return next(err)
+      }
+      console.log(res.rows)
+  });
+}
+
+function updateItemQuantity(item) {
+  db.query('update items set quantity = $1 where shelfid = $2 and itemid = $3', [item.quantity, item.shelfid, item.itemid], function(err, res) {
+      if (err) {
+          console.log('Error here')
+          console.log(err)
+          return next(err)
+      }
+      console.log(res.rows)
+  });
 }
 
 function updateRemovalTime(item, setNull) {
@@ -39,7 +72,7 @@ function updateRemovalTime(item, setNull) {
             return next(err)
         }
         console.log(res.rows)
-    })
+    });
 }
 
 function updateItemWeight(item, weight) {
@@ -53,7 +86,7 @@ function updateItemWeight(item, weight) {
       //console.log(res.fields.map(f => f.name)) //list fields
       //console.log(res.rows[0])
       console.log(res.rows)
-  })
+  });
 }
 
 //TODO: this should really return a list of them, but it doesnt yet
@@ -61,11 +94,11 @@ function getItems(){
 	db.query('SELECT * FROM items WHERE removedat IS NULL', function(err, res) {
     	if (err) {
     		console.log('Error here')
-			console.log(err)
-      		return next(err)
+			  console.log(err)
+      	return next(err)
     	}
     	console.log(res.rows)
- 	})
+ 	});
 }
 
 function getItemsNearWeight(weight, ws){
@@ -81,6 +114,22 @@ function manualEntry(item) {
     itemAddedQueue.push({'product': item.product, 'quantity': item.quantity})
 }
 
+// used in weightChange for checking things from the removed queue
+// need to see if actually remove the item or just update the quantity
+function updateItemFromRemovedQueue(item, weight) {
+  updateItemWeight(item, weight);
+  if (item.quantity <= 1) {
+    incrementItemQuantity(item);
+    updateRemovalTime(item, true);
+  }
+  else {
+    item.quantity -= 1;
+    incrementItemQuantity(item);
+    updateRemovalTime(item, true);
+    itemRemovedQueue.push(item);
+  }
+}
+
 // TODO: check weight value
 // if up, then check for item information
 // if down, check database for things and whatever
@@ -91,9 +140,8 @@ function weightChange(difference, ws) {
 	if (weight > 0){
 		if (itemRemovedQueue.length == 1) {
       //updating weight on last removed item
-      var item = itemRemovedQueue.pop()
-      updateItemWeight(item, weight)
-      updateRemovalTime(item, true)
+      var item = itemRemovedQueue.pop();
+      updateItemFromRemovedQueue(item, weight);
       ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
 		} else if (itemRemovedQueue.length > 1) {
       //multiple items removed, re-adding one of the removed items
@@ -103,9 +151,8 @@ function weightChange(difference, ws) {
           item = itemRemovedQueue[i];
         }
       }
-      updateItemWeight(item, weight);
-      updateRemovalTime(item, true);
       itemRemovedQueue.splice(itemRemovedQueue.indexOf(item),1);
+      updateItemFromRemovedQueue(item, weight);
     } else {
       if (itemAddedQueue.length < 1){
         console.log('Made a mistake! weight change without an item manually added')
@@ -120,41 +167,60 @@ function weightChange(difference, ws) {
 	}
 }
 
+function updateItemRemovedQueue(item) {
+  for (var i = 0; i < itemRemovedQueue.length; i++) {
+    if (item.itemid == itemRemovedQueue[i].itemid) {
+      var item = itemRemovedQueue[i];
+      item.quantity += 1;
+      return;
+    }
+  }
+
+  item.quantity = 1;
+  itemRemovedQueue.push(item);
+}
+
+// need to check if should remove item or change quantity
+function updateItemThatWasJustRemoved(item, ws) {
+  console.log("ITEM:::");
+  console.log(item)
+  if (item.quantity <= 1){
+    decrementItemQuantity(item);
+    updateItemRemovedQueue(item);
+    updateRemovalTime(item, false);
+    ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid, 'quantityChange': false}))
+  }
+  else {
+    decrementItemQuantity(item);
+    updateItemRemovedQueue(item);
+    ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid, 'quantityChange': true}))
+  }
+}
+
 function itemRemoved(itemId, ws) {
   db.query('SELECT * FROM items WHERE ItemId = $1', [itemId])
     .then(res => {
-      itemRemovedQueue.push(res.rows[0]);
-      updateRemovalTime(res.rows[0], false);
-      ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': itemId}))
+      updateItemThatWasJustRemoved(res.rows[0], ws);
     })
     .catch(e => console.error(e.stack))
 }
 
 function nearbyItems(nearbyItems, ws){
+  console.log("nearbyItems:::")
+  console.log(nearbyItems)
 	// do something here. Remove the item or return a list if possible
 	if (nearbyItems.length < 1) {
-        console.log('no items found')
+    console.log('no items found')
 	}
 	if (nearbyItems.length == 1) {
   	console.log('only one matching item')
-  	itemRemovedQueue.push(nearbyItems[0])
-  	updateRemovalTime(nearbyItems[0], false)
-    //send to android that we removed one item
-    ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': nearbyItems[0].itemid}))
+  	updateItemThatWasJustRemoved(nearbyItems[0], ws);
 	}
 	if (nearbyItems.length > 1) {
   	//TODO send the choices to the android
   	console.log('multiple items found')
     ws.send(JSON.stringify({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)}))
 	}
-}
-
-function removeItem(itemId, ws) {
-  db.query('SELECT * FROM items where itemid = $1', itemId)
-    .then(res => {
-      nearbyItems(res.rows, ws)
-    })
-    .catch(e => console.error(e.stack))
 }
 
 // TODO: have barcodes handle quantity?
@@ -165,7 +231,26 @@ function quantity(num) {
 		return
 	}
 	var item = itemAddedQueue.pop()
-    itemAddedQueue.push({'product': item['product'], 'quantity' : num})
+  itemAddedQueue.push({'product': item['product'], 'quantity' : num});
+}
+
+function getAddedQueue() {
+  for (var i = 0; i < itemAddedQueue.length; i++) {
+    console.log("Item " + (i+1));
+    console.log("ItemId: " + itemAddedQueue[i].itemid)
+    console.log("Product: " + itemAddedQueue[i].product);
+    console.log("Quantity: " + itemAddedQueue[i].quantity);
+  }
+}
+
+function getRemovedQueue() {
+  for (var i = 0; i < itemRemovedQueue.length; i++) {
+    console.log("Item " + (i+1));
+    console.log("ItemId: " + itemRemovedQueue[i].itemid)
+    console.log("Product: " + itemRemovedQueue[i].product);
+    console.log("Quantity: " + itemRemovedQueue[i].quantity);
+    console.log("Weight: " + itemRemovedQueue[i].weight);
+  }
 }
 
 module.exports = {
@@ -181,10 +266,16 @@ module.exports = {
 	getItemList: () => {
 		getItems()
 	},
-	addItem: (product, weight, quantity) => {
+	addItem: (product, weight, quantity, ws) => {
 		putDatabase(product, weight, quantity, ws)
 	},
   itemRemoved: (itemId, ws) => {
     itemRemoved(itemId, ws)
+  },
+  getAQueue: () => {
+    getAddedQueue()
+  },
+  getRQueue: () => {
+    getRemovedQueue()
   }
 }
