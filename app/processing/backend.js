@@ -1,6 +1,8 @@
 const db = require('../db');
+var moment = require('moment');
 
 const WEIGHT_ERROR = 0.05;
+const TIME_THRESHOLD = 15; //300 for real, 15 for testing, 30 for demo?
 
 var itemAddedQueue = []
 var itemRemovedQueue = []
@@ -8,6 +10,28 @@ var itemRemovedQueue = []
 // TODO: the shelfId 1 would need to change
 const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry)' +
 					'Values (1, $1, $2, $3, $4, $5);'
+
+function cleanQueues() {
+  var now = moment(new Date());
+
+  for (var i = 0; i < itemRemovedQueue.length; i++) {
+    var item = itemRemovedQueue.pop()
+    var diff = moment(now).diff(item.lasttouched, 'seconds');
+    console.log(diff);
+    if (diff <= TIME_THRESHOLD){
+      itemRemovedQueue.push(item);
+    }
+  }
+
+  for (var i = 0; i < itemAddedQueue.length; i++) {
+    var item = itemAddedQueue.pop()
+    var diff = moment(now).diff(item.lasttouched, 'seconds');
+    console.log(diff);
+    if (diff <= TIME_THRESHOLD){
+      itemAddedQueue.push(item);
+    }
+  }
+}
 
 function putDatabase(product, weight, quantity, ws){
 	// TODO: the 1 in this query would need to be a shelfId
@@ -111,13 +135,14 @@ function getItemsNearWeight(weight, ws){
 
 // TODO: have this actually create things and put item into queue
 function manualEntry(item) {
-    itemAddedQueue.push({'product': item.product, 'quantity': item.quantity})
+    itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date())});
 }
 
 // used in weightChange for checking things from the removed queue
 // need to see if actually remove the item or just update the quantity
-function updateItemFromRemovedQueue(item, weight) {
+function updateItemFromRemovedQueue(item, weight, ws) {
   updateItemWeight(item, weight);
+  item.lasttouched = moment(new Date());
   if (item.quantity <= 1) {
     incrementItemQuantity(item);
     updateRemovalTime(item, true);
@@ -128,6 +153,7 @@ function updateItemFromRemovedQueue(item, weight) {
     updateRemovalTime(item, true);
     itemRemovedQueue.push(item);
   }
+  ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
 }
 
 // TODO: check weight value
@@ -141,8 +167,7 @@ function weightChange(difference, ws) {
 		if (itemRemovedQueue.length == 1) {
       //updating weight on last removed item
       var item = itemRemovedQueue.pop();
-      updateItemFromRemovedQueue(item, weight);
-      ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
+      updateItemFromRemovedQueue(item, weight, ws);
 		} else if (itemRemovedQueue.length > 1) {
       //multiple items removed, re-adding one of the removed items
       var item = itemRemovedQueue[0];
@@ -152,7 +177,7 @@ function weightChange(difference, ws) {
         }
       }
       itemRemovedQueue.splice(itemRemovedQueue.indexOf(item),1);
-      updateItemFromRemovedQueue(item, weight);
+      updateItemFromRemovedQueue(item, weight, ws);
     } else {
       if (itemAddedQueue.length < 1){
         console.log('Made a mistake! weight change without an item manually added')
@@ -177,6 +202,7 @@ function updateItemRemovedQueue(item) {
   }
 
   item.quantity = 1;
+  item.lasttouched = moment(new Date());
   itemRemovedQueue.push(item);
 }
 
@@ -231,7 +257,7 @@ function quantity(num) {
 		return
 	}
 	var item = itemAddedQueue.pop()
-  itemAddedQueue.push({'product': item['product'], 'quantity' : num});
+  itemAddedQueue.push({'product': item['product'], 'quantity' : num, 'lasttouched': moment(new Date())});
 }
 
 function getAddedQueue() {
@@ -240,6 +266,7 @@ function getAddedQueue() {
     console.log("ItemId: " + itemAddedQueue[i].itemid)
     console.log("Product: " + itemAddedQueue[i].product);
     console.log("Quantity: " + itemAddedQueue[i].quantity);
+    console.log("LastTouched: " + itemAddedQueue[i].lasttouched);
   }
 }
 
@@ -250,32 +277,42 @@ function getRemovedQueue() {
     console.log("Product: " + itemRemovedQueue[i].product);
     console.log("Quantity: " + itemRemovedQueue[i].quantity);
     console.log("Weight: " + itemRemovedQueue[i].weight);
+    console.log("LastTouched: " + itemRemovedQueue[i].lasttouched);
   }
 }
 
 module.exports = {
 	addQuantity: (num) => {
-		quantity(num)
+    cleanQueues();
+		quantity(num);
 	},
 	manualEntry: (item) => {
-		manualEntry(item)
+    cleanQueues();
+		manualEntry(item);
 	},
 	processWeightChange: (difference, ws) => {
-		weightChange(difference, ws)
+    cleanQueues();
+		weightChange(difference, ws);
 	},
 	getItemList: () => {
-		getItems()
+    cleanQueues();
+		getItems();
 	},
 	addItem: (product, weight, quantity, ws) => {
-		putDatabase(product, weight, quantity, ws)
+    cleanQueues();
+		putDatabase(product, weight, quantity, ws);
 	},
   itemRemoved: (itemId, ws) => {
-    itemRemoved(itemId, ws)
+    cleanQueues();
+    itemRemoved(itemId, ws);
   },
   getAQueue: () => {
-    getAddedQueue()
+    getAddedQueue();
   },
   getRQueue: () => {
-    getRemovedQueue()
+    getRemovedQueue();
+  },
+  cleanQueue: () => {
+    cleanQueues();
   }
 }

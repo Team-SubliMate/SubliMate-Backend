@@ -92,6 +92,9 @@ rl.on('line', (input) => {
 		case 'rq':
 			backend.getRQueue();
 			break;
+		case 'cq':
+			backend.cleanQueue();
+			break;
 		default:
 			console.log(' Improper command. Try again.');
 			break;
