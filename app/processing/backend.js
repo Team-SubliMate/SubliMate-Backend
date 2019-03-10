@@ -184,6 +184,7 @@ function weightChange(difference, ws) {
         return
       }
       var itemInfo = itemAddedQueue.pop()
+      weight = weight / itemInfo.quantity
       putDatabase(itemInfo.product, weight, itemInfo.quantity, ws)
 		}
 	}
