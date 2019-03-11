@@ -33,10 +33,18 @@ function cleanQueues() {
   }
 }
 
+function getUpcData() {
+  db.query('SELECT Product, UPC, ImgUrl FROM items WHERE UPC IS NOT NULL')
+    .then(res => {
+      return res.rows;
+    })
+    .catch(e => {
+      console.error(e.stack);
+    });
+}
+
 function putDatabase(product, weight, quantity, upc, imgurl, ws){
 	// TODO: the 1 in this query would need to be a shelfId
-  console.log(upc, imgurl)
-  console.log(upc, imgurl)
 
 	db.query('SELECT * FROM GetNextItemId(1)')
 		.then(res => {
@@ -316,5 +324,8 @@ module.exports = {
   },
   cleanQueue: () => {
     cleanQueues();
+  },
+  getAllUpcData: () => {
+    getUpcData();
   }
 }
