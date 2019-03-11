@@ -49,7 +49,7 @@ function lookupBarcode(upc) {
 			try {
 				barcodeData = JSON.parse(data);
 				console.log(barcodeData.items[0].title);
-				backend.manualEntry({'product': barcodeData.items[0].title, 'quantity': '1'});
+				backend.manualEntry({'product': barcodeData.items[0].title, 'quantity': '1', 'upc': upc, 'imgurl': barcodeData.items[0].images[0]});
 			} catch (err) {
 				console.log(err.message);
 			}

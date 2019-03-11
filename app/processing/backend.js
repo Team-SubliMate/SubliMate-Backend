@@ -8,8 +8,8 @@ var itemAddedQueue = []
 var itemRemovedQueue = []
 
 // TODO: the shelfId 1 would need to change
-const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry)' +
-					'Values (1, $1, $2, $3, $4, $5);'
+const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry, UPC, ImgUrl)' +
+					'Values (1, $1, $2, $3, $4, $5, $6, $7);'
 
 function cleanQueues() {
   var now = moment(new Date());
@@ -33,18 +33,19 @@ function cleanQueues() {
   }
 }
 
-function putDatabase(product, weight, quantity, ws){
+function putDatabase(product, weight, quantity, upc, imgurl, ws){
 	// TODO: the 1 in this query would need to be a shelfId
-	// Need these calls to be synchornous, so have to put the next ones into the callback
-	// its kind of gross but what else can we do? =>
-	// => make a stored procedure?
+  console.log(upc, imgurl)
+  console.log(upc, imgurl)
+
 	db.query('SELECT * FROM GetNextItemId(1)')
 		.then(res => {
       var itemId = res.rows[0]['getnextitemid'];
       var date = new Date();
-      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date};
+      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl};
 			ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
-      db.query(INSERT_TEXT, [itemId, product, weight, quantity, date]);
+      db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl])
+      .then(res => {}).catch(e => {console.error(e.stack);});
 		})
 		.catch(e => {
 			console.error(e.stack);
@@ -135,7 +136,7 @@ function getItemsNearWeight(weight, ws){
 
 // TODO: have this actually create things and put item into queue
 function manualEntry(item) {
-    itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date())});
+    itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl});
 }
 
 // used in weightChange for checking things from the removed queue
@@ -185,7 +186,7 @@ function weightChange(difference, ws) {
       }
       var itemInfo = itemAddedQueue.pop()
       weight = weight / itemInfo.quantity
-      putDatabase(itemInfo.product, weight, itemInfo.quantity, ws)
+      putDatabase(itemInfo.product, weight, itemInfo.quantity, itemInfo.upc, itemInfo.imgurl, ws)
 		}
 	}
 	else if (weight < 0){

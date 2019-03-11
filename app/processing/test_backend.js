@@ -14,6 +14,14 @@ let Item = class {
 	}
 };
 
+let Bitem = class {
+	constructor(product, quantity, upc){
+		this.product = product;
+		this.quantity = quantity;
+		this.upc = upc;
+	}
+};
+
 const ws = new mock_ws();
 
 const rl = readline.createInterface({
@@ -50,11 +58,12 @@ rl.on('line', (input) => {
             backend.processWeightChange(split[1], ws);
 			break;
 		case 'barcode':
-			if (split.length != 2){
-				console.log('Incorrect number of arguements, expecting 2');
+			if (split.length != 4){
+				console.log('Incorrect number of arguements, expecting 4');
 				break;
 			}
-			console.log(split[1]);
+			var item = new Bitem(split[2], split[3], split[1]);
+			backend.manualEntry(item)
 			break;
 		case 'manual':
 			if (split.length != 3){
