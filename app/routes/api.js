@@ -50,7 +50,7 @@ router.get('/inventory', function(req, res, next) {
   };
 
   // TODO: Retrieve data from database and send as json
-  db.query('SELECT * FROM items', function(err, result) {
+  db.query('SELECT * FROM items WHERE removedat IS NULL', function(err, result) {
     if (err) {
       console.log("Error in DB: " + err);
       res.json(mock);
