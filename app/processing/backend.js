@@ -4,8 +4,13 @@ var moment = require('moment');
 const WEIGHT_ERROR = 0.05;
 const TIME_THRESHOLD = 15; //300 for real, 15 for testing, 30 for demo?
 
-var itemAddedQueue = []
-var itemRemovedQueue = []
+var itemAddedQueue = [];
+var itemRemovedQueue = [];
+
+var soundList = {
+  'BEEP': 'beep',
+  'ERROR': 'error'
+};
 
 // TODO: the shelfId 1 would need to change
 const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry, UPC, ImgUrl)' +
@@ -33,11 +38,12 @@ function cleanQueues() {
   }
 }
 
-function sendErrorToClient(ws, message, additional) {
+function sendErrorToClient(ws, message, sound, additional) {
   ws.send(JSON.stringify({
     'type': 'FLOW_ERROR',
     'message': message,
-    'additional': additional
+    'additional': additional,
+    'sound': sound
   }));
 }
 
@@ -200,7 +206,7 @@ function weightChange(difference, ws) {
       updateItemFromRemovedQueue(item, weight, ws);
     } else {
       if (itemAddedQueue.length < 1){
-        sendErrorToClient(ws, "Unexpected item in the weight area!");
+        sendErrorToClient(ws, "Unexpected item in the weight area!", soundList['BEEP']);
         console.log('Made a mistake! weight change without an item manually added')
         return;
       }
@@ -258,7 +264,7 @@ function nearbyItems(nearbyItems, ws){
   console.log(nearbyItems)
 	// do something here. Remove the item or return a list if possible
 	if (nearbyItems.length < 1) {
-    sendErrorToClient(ws, "No items found with that weight.");
+    sendErrorToClient(ws, "No items found with that weight.", soundList['BEEP']);
     console.log('no items found')
 	}
 	if (nearbyItems.length == 1) {
