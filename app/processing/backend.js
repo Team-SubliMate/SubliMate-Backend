@@ -267,7 +267,7 @@ function quantity(num) {
 		return
 	}
 	var item = itemAddedQueue.pop()
-  itemAddedQueue.push({'product': item['product'], 'quantity' : num, 'lasttouched': moment(new Date())});
+  itemAddedQueue.push({'product': item['product'], 'quantity' : num, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl});
 }
 
 function getAddedQueue() {

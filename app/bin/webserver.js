@@ -47,8 +47,8 @@ backend.getAllUpcData(setUpcData);
 
 function checkIfInUpcCache(upc){
 	for (data in upcData) {
-		if (upc == data.upc){
-			return data;
+		if (upc == upcData[data].upc){
+			return upcData[data];
 		}
 	}
 	return null;
@@ -74,6 +74,7 @@ function lookupBarcode(upc) {
 				barcodeData = JSON.parse(data);
 				console.log(barcodeData.items[0].title);
 				backend.manualEntry({'product': barcodeData.items[0].title, 'quantity': '1', 'upc': upc, 'imgurl': barcodeData.items[0].images[0]});
+				upcData.push({'product': barcodeData.items[0].title, 'upc': upc, 'imgurl': barcodeData.items[0].images[0]})
 			} catch (err) {
 				console.log(err.message);
 			}
@@ -132,7 +133,7 @@ wss.on('connection', function connection(ws) {
 	ws.on('message', function incoming(message) {
 		console.log('received: %s', message);
 		evt = JSON.parse(message);
-		handleEvt(ws,evt);
+		handleEvent(ws,evt);
 	});
 	/*setInterval( function() {
 		var msg = Math.random();

@@ -118,6 +118,15 @@ rl.on('line', (input) => {
 		case 'dupc':
 			console.log(upcData);
 			break;
+		case 'tupc':
+			upc = split[1];
+			for (data in upcData) {
+				if (upc == upcData[data].upc){
+					console.log(true);
+					break;
+				}
+			}
+			break;
 		default:
 			console.log(' Improper command. Try again.');
 			break;
