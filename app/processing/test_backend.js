@@ -1,6 +1,8 @@
 const readline = require('readline');
 const backend = require('../processing/backend.js');
 
+
+
 class mock_ws {
 	send(message) {
 		return;
@@ -28,6 +30,12 @@ const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout
 });
+
+var upcData = null;
+
+function callback(res) {
+	upcData = res;
+}
 
 rl.on('SIGINT', () => {
   rl.question('Are you sure you want to exit? ', (answer) => {
@@ -103,6 +111,12 @@ rl.on('line', (input) => {
 			break;
 		case 'cq':
 			backend.cleanQueue();
+			break;
+		case 'gupc':
+			backend.getAllUpcData(callback);
+			break;
+		case 'dupc':
+			console.log(upcData);
 			break;
 		default:
 			console.log(' Improper command. Try again.');

@@ -33,10 +33,10 @@ function cleanQueues() {
   }
 }
 
-function getUpcData() {
+function getUpcData(callback) {
   db.query('SELECT Product, UPC, ImgUrl FROM items WHERE UPC IS NOT NULL')
     .then(res => {
-      return res.rows;
+      callback(res.rows);
     })
     .catch(e => {
       console.error(e.stack);
@@ -53,7 +53,7 @@ function putDatabase(product, weight, quantity, upc, imgurl, ws){
       var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl};
 			ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
       db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl])
-      .then(res => {}).catch(e => {console.error(e.stack);});
+        .then(res => {}).catch(e => {console.error(e.stack);});
 		})
 		.catch(e => {
 			console.error(e.stack);
@@ -190,7 +190,7 @@ function weightChange(difference, ws) {
     } else {
       if (itemAddedQueue.length < 1){
         console.log('Made a mistake! weight change without an item manually added')
-        return
+        return;
       }
       var itemInfo = itemAddedQueue.pop()
       weight = weight / itemInfo.quantity
@@ -325,7 +325,10 @@ module.exports = {
   cleanQueue: () => {
     cleanQueues();
   },
-  getAllUpcData: () => {
-    getUpcData();
+  getAllUpcData: (callback) => {
+    getUpcData(callback);
+  },
+  getAllUpcDataPromise: () => {
+    getUpcDataPromise();
   }
 }

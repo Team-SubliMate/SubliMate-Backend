@@ -36,8 +36,32 @@ const wss = new WebSocket.Server({port: 8090});
 
 const clients = {};
 
+var upcData = null;
+function setUpcData(res) {
+	console.log(res);
+	upcData = res;
+	return;
+}
+
+backend.getAllUpcData(setUpcData);
+
+function checkIfInUpcCache(upc){
+	for (data in upcData) {
+		if (upc == data.upc){
+			return data;
+		}
+	}
+	return null;
+}
+
 // TODO: put the created item in a socket
 function lookupBarcode(upc) {
+	cached = checIfInUpcCache(upc)
+	if (cached != null) {
+		backend.manualEntry({'product': cached.product, 'quantity': '1', 'upc': upc, 'imgurl': cached.imgurl});
+		return;
+	}
+
 	https.get('https://api.upcitemdb.com/prod/trial/lookup?upc=' + upc, (resp) => {
 		let data = "";
 		resp.on('data', (chunk) => {
