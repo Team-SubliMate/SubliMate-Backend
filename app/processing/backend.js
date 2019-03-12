@@ -33,10 +33,20 @@ function cleanQueues() {
   }
 }
 
+function sendErrorToClient(ws, message, additional) {
+  ws.send(JSON.stringify({
+    'type': 'FLOW_ERROR',
+    'message': message,
+    'additional': additional
+  }));
+}
+
 function getUpcData(callback) {
   db.query('SELECT Product, UPC, ImgUrl FROM items WHERE UPC IS NOT NULL')
     .then(res => {
-      callback(res.rows);
+      if (res.rowCount > 0){
+        callback(res.rows);  
+      }
     })
     .catch(e => {
       console.error(e.stack);
@@ -57,6 +67,7 @@ function putDatabase(product, weight, quantity, upc, imgurl, ws){
 		})
 		.catch(e => {
 			console.error(e.stack);
+      sendErrorToClient(ws, "Failed to get next item id");
 		});
 }
 
@@ -189,6 +200,7 @@ function weightChange(difference, ws) {
       updateItemFromRemovedQueue(item, weight, ws);
     } else {
       if (itemAddedQueue.length < 1){
+        sendErrorToClient(ws, "Unexpected item in the weight area!");
         console.log('Made a mistake! weight change without an item manually added')
         return;
       }
@@ -246,6 +258,7 @@ function nearbyItems(nearbyItems, ws){
   console.log(nearbyItems)
 	// do something here. Remove the item or return a list if possible
 	if (nearbyItems.length < 1) {
+    sendErrorToClient(ws, "No items found with that weight.");
     console.log('no items found')
 	}
 	if (nearbyItems.length == 1) {

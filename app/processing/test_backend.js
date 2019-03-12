@@ -31,7 +31,7 @@ const rl = readline.createInterface({
 	output: process.stdout
 });
 
-var upcData = null;
+var upcData = {};
 
 function callback(res) {
 	upcData = res;

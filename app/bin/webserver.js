@@ -36,7 +36,7 @@ const wss = new WebSocket.Server({port: 8090});
 
 const clients = {};
 
-var upcData = null;
+var upcData = {};
 function setUpcData(res) {
 	console.log(res);
 	upcData = res;
