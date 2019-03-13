@@ -21,11 +21,6 @@ function setItems(res){
 
 getItems(setItems);
 
-var soundList = {
-  'BEEP': 'beep',
-  'ERROR': 'error'
-};
-
 // TODO: the shelfId 1 would need to change
 const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry, UPC, ImgUrl, BestBefore)' +
 					'Values (1, $1, $2, $3, $4, $5, $6, $7, $8);'
@@ -54,12 +49,12 @@ function cleanQueues() {
   }
 }
 
-function sendErrorToClient(ws, message, sound, additional) {
+<<<<<<< Updated upstream
+function sendErrorToClient(ws, message, additional) {
   sendAndLog(JSON.stringify({
     'type': 'FLOW_ERROR',
     'message': message,
-    'additional': additional,
-    'sound': sound
+    'additional': additional
   }), ws);
 }
 
@@ -206,7 +201,7 @@ function weightChange(difference, ws) {
       updateItemFromRemovedQueue(item, weight, ws);
     } else {
       if (itemAddedQueue.length < 1){
-        sendErrorToClient(ws, "Unexpected item in the weight area!", soundList['BEEP']);
+        sendErrorToClient(ws, "Unexpected item in the weight area!");
         console.log('Made a mistake! weight change without an item manually added')
         return;
       }
@@ -260,7 +255,7 @@ function nearbyItems(nearbyItems, ws){
   console.log(nearbyItems)
 	// do something here. Remove the item or return a list if possible
 	if (nearbyItems.length < 1) {
-    sendErrorToClient(ws, "No items found with that weight.", soundList['BEEP']);
+    sendErrorToClient(ws, "No items found with that weight.");
     console.log('no items found')
 	}
 	else if (nearbyItems.length == 1) {
