@@ -5,6 +5,7 @@ const backend = require('../processing/backend.js');
 
 class mock_ws {
 	send(message) {
+		console.log(message);
 		return;
 	}
 }

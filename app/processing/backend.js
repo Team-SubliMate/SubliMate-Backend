@@ -6,6 +6,13 @@ const TIME_THRESHOLD = 15; //300 for real, 15 for testing, 30 for demo?
 
 var itemAddedQueue = [];
 var itemRemovedQueue = [];
+var items = [];
+
+function setItems(res){
+  items = res;
+}
+
+getItems(setItems);
 
 var soundList = {
   'BEEP': 'beep',
@@ -15,6 +22,8 @@ var soundList = {
 // TODO: the shelfId 1 would need to change
 const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry, UPC, ImgUrl)' +
 					'Values (1, $1, $2, $3, $4, $5, $6, $7);'
+
+const UPDATE_TEXT = 'UPDATE items SET Weight=$3, Quantity=$4, RemovedAt=$5 WHERE ItemId=$1 AND ShelfId=$2';
 
 function cleanQueues() {
   var now = moment(new Date());
@@ -59,6 +68,18 @@ function getUpcData(callback) {
     });
 }
 
+function updateItem(item, ws){
+  removedAt = null;
+  if (item.quantity <= 0){
+    removedAt = new Date();
+  }
+  db.query(UPDATE_TEXT, [item.itemid, item.shelfid, item.weight, item.quantity, removedAt])
+    .catch(e => {
+      console.error(e.stack);
+      sendErrorToClient(ws, "Failed to update item in db");
+    })
+}
+
 function putDatabase(product, weight, quantity, upc, imgurl, ws){
 	// TODO: the 1 in this query would need to be a shelfId
 
@@ -69,7 +90,7 @@ function putDatabase(product, weight, quantity, upc, imgurl, ws){
       var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl};
 			ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
       db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl])
-        .then(res => {}).catch(e => {console.error(e.stack);});
+        .then(res => { getItems(setItems); }).catch(e => {console.error(e.stack);});
 		})
 		.catch(e => {
 			console.error(e.stack);
@@ -77,86 +98,26 @@ function putDatabase(product, weight, quantity, upc, imgurl, ws){
 		});
 }
 
-function incrementItemQuantity(item) {
-  db.query('update items set quantity = quantity + 1 where shelfid = $1 and itemid = $2', [item.shelfid, item.itemid], function(err, res) {
-    if (err) {
-          console.log('Error here')
-          console.log(err)
-          return next(err)
-      }
-      console.log(res.rows)
-  });
-}
-
-function decrementItemQuantity(item) {
-  db.query('update items set quantity = quantity - 1 where shelfid = $1 and itemid = $2', [item.shelfid, item.itemid], function(err, res) {
-    if (err) {
-          console.log('Error here')
-          console.log(err)
-          return next(err)
-      }
-      console.log(res.rows)
-  });
-}
-
-function updateItemQuantity(item) {
-  db.query('update items set quantity = $1 where shelfid = $2 and itemid = $3', [item.quantity, item.shelfid, item.itemid], function(err, res) {
-      if (err) {
-          console.log('Error here')
-          console.log(err)
-          return next(err)
-      }
-      console.log(res.rows)
-  });
-}
-
-function updateRemovalTime(item, setNull) {
-	var d = new Date()
-	if (setNull){
-		d = null
-	}
-	db.query('update items set removedat = $1 where shelfid = $2 and itemid = $3', [d, item.shelfid, item.itemid], function(err, res) {
-        if (err) {
-            console.log('Error here')
-            console.log(err)
-            return next(err)
-        }
-        console.log(res.rows)
-    });
-}
-
-function updateItemWeight(item, weight) {
-  item.weight = weight;
-  db.query('update items set weight = $1 where shelfid = $2 and itemid = $3', [weight, item.shelfid, item.itemid], function(err, res) {
-      if (err) {
-          console.log('Error here')
-          console.log(err)
-          return next(err) // i dont think this works as intended
-      }
-      //console.log(res.fields.map(f => f.name)) //list fields
-      //console.log(res.rows[0])
-      console.log(res.rows)
-  });
-}
-
 //TODO: this should really return a list of them, but it doesnt yet
-function getItems(){
-	db.query('SELECT * FROM items WHERE removedat IS NULL', function(err, res) {
-    	if (err) {
-    		console.log('Error here')
-			  console.log(err)
-      	return next(err)
-    	}
-    	console.log(res.rows)
- 	});
+function getItems(callback){
+	db.query('SELECT * FROM items WHERE removedat IS NULL')
+    .then( res => {
+    	console.log(res.rows);
+      callback(res.rows);
+ 	  })
+    .catch(err => {console.error(e.stack)});
 }
 
-function getItemsNearWeight(weight, ws){
-	db.query('SELECT * FROM items where removedat IS NULL and weight between $1 and $2', [weight * (1 - WEIGHT_ERROR), weight *  (1 + WEIGHT_ERROR)])
-		.then(res => {
-			nearbyItems(res.rows, ws)
-  	})
-		.catch(e => console.error(e.stack))
+function getLocalItemsNearWeight(weight, ws) {
+  nearby = [];
+  for(item in items){
+    if (items[item].weight < weight *  (1 + WEIGHT_ERROR) &&
+      items[item].weight > weight *  (1 - WEIGHT_ERROR)){
+      nearby.push(items[item]);
+    }
+  }
+
+  return nearby;
 }
 
 // TODO: have this actually create things and put item into queue
@@ -164,22 +125,52 @@ function manualEntry(item) {
     itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl});
 }
 
+function getItemFromLocal(itemid){
+  for (item in items){
+    console.log("searching itemid " + items[item].itemid + " for " + itemid);
+    if (items[item].itemid == itemid){
+      console.log('found item!');
+      return items[item];
+    }
+  }
+  console.log("ERROR (not usually but maybe): didn't find item in local with id " + itemid);
+  return null;
+}
+
+function removeItemFromLocal(itemid){
+  for (item in items){
+    console.log("searching itemid " + items[item].itemid + " for " + itemid);
+    if (items[item].itemid == itemid){
+      console.log('found item!');
+     items.splice(item ,1);
+    }
+  }
+}
+
 // used in weightChange for checking things from the removed queue
 // need to see if actually remove the item or just update the quantity
-function updateItemFromRemovedQueue(item, weight, ws) {
-  updateItemWeight(item, weight);
-  item.lasttouched = moment(new Date());
-  if (item.quantity <= 1) {
-    incrementItemQuantity(item);
-    updateRemovalTime(item, true);
+function updateItemFromRemovedQueue(removedItem, weight, ws) {
+  var item = getItemFromLocal(removedItem.itemid);
+  if (item == null){
+    console.log(removedItem);
+    removedItem.quantity = 1;
+    removedItem.weight = weight;
+    ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
+    updateItem(removedItem);
+    items.push(removedItem);
+    return;
   }
-  else {
-    item.quantity -= 1;
-    incrementItemQuantity(item);
-    updateRemovalTime(item, true);
-    itemRemovedQueue.push(item);
+
+  removedItem.lasttouched = moment(new Date());
+  item.quantity += 1;
+  item.weight = weight;
+  ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}));
+
+  removedItem.weight = weight;
+  removedItem.quantity -= 1;
+  if (removedItem.quantity > 0){
+    itemRemovedQueue.push(removedItem);
   }
-  ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
 }
 
 // TODO: check weight value
@@ -192,8 +183,8 @@ function weightChange(difference, ws) {
 	if (weight > 0){
 		if (itemRemovedQueue.length == 1) {
       //updating weight on last removed item
-      var item = itemRemovedQueue.pop();
-      updateItemFromRemovedQueue(item, weight, ws);
+      var removedItem = itemRemovedQueue.pop();
+      updateItemFromRemovedQueue(removedItem, weight, ws);
 		} else if (itemRemovedQueue.length > 1) {
       //multiple items removed, re-adding one of the removed items
       var item = itemRemovedQueue[0];
@@ -210,53 +201,49 @@ function weightChange(difference, ws) {
         console.log('Made a mistake! weight change without an item manually added')
         return;
       }
-      var itemInfo = itemAddedQueue.pop()
-      weight = weight / itemInfo.quantity
+      var itemInfo = itemAddedQueue.pop();
+      weight = weight / itemInfo.quantity;
       putDatabase(itemInfo.product, weight, itemInfo.quantity, itemInfo.upc, itemInfo.imgurl, ws)
 		}
 	}
 	else if (weight < 0){
-		getItemsNearWeight(Math.abs(weight), ws)
+		nearby = getLocalItemsNearWeight(Math.abs(weight), ws)
+    console.log("nearby " + nearby);
+    nearbyItems(nearby, ws);
 	}
 }
 
-function updateItemRemovedQueue(item) {
+function updateItemRemovedQueue(localItem) {
   for (var i = 0; i < itemRemovedQueue.length; i++) {
-    if (item.itemid == itemRemovedQueue[i].itemid) {
+    if (localItem.itemid == itemRemovedQueue[i].itemid) {
       var item = itemRemovedQueue[i];
       item.quantity += 1;
+      item.lasttouched = moment(new Date());
       return;
     }
   }
 
+  var item = JSON.parse(JSON.stringify(localItem));
   item.quantity = 1;
   item.lasttouched = moment(new Date());
   itemRemovedQueue.push(item);
 }
 
-// need to check if should remove item or change quantity
-function updateItemThatWasJustRemoved(item, ws) {
+function removeAnItem(itemid, ws){
+  console.log(itemid);
+  var item = getItemFromLocal(itemid);
   console.log("ITEM:::");
   console.log(item)
-  if (item.quantity <= 1){
-    decrementItemQuantity(item);
-    updateItemRemovedQueue(item);
-    updateRemovalTime(item, false);
-    ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid, 'quantityChange': false}))
+  item.quantity -= 1;
+  updateItem(item);
+  updateItemRemovedQueue(item);
+  if (item.quantity < 1){
+    removeItemFromLocal(item.itemid);
+    ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid}))
   }
-  else {
-    decrementItemQuantity(item);
-    updateItemRemovedQueue(item);
-    ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid, 'quantityChange': true}))
+  else{
+    ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity, 'where': 'here'}))
   }
-}
-
-function itemRemoved(itemId, ws) {
-  db.query('SELECT * FROM items WHERE ItemId = $1', [itemId])
-    .then(res => {
-      updateItemThatWasJustRemoved(res.rows[0], ws);
-    })
-    .catch(e => console.error(e.stack))
 }
 
 function nearbyItems(nearbyItems, ws){
@@ -267,11 +254,12 @@ function nearbyItems(nearbyItems, ws){
     sendErrorToClient(ws, "No items found with that weight.", soundList['BEEP']);
     console.log('no items found')
 	}
-	if (nearbyItems.length == 1) {
+	else if (nearbyItems.length == 1) {
   	console.log('only one matching item')
-  	updateItemThatWasJustRemoved(nearbyItems[0], ws);
+    console.log(nearbyItems[0].itemid)
+  	removeAnItem(nearbyItems[0].itemid, ws);
 	}
-	if (nearbyItems.length > 1) {
+	else if (nearbyItems.length > 1) {
   	//TODO send the choices to the android
   	console.log('multiple items found')
     ws.send(JSON.stringify({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)}))
@@ -292,22 +280,19 @@ function quantity(num) {
 function getAddedQueue() {
   for (var i = 0; i < itemAddedQueue.length; i++) {
     console.log("Item " + (i+1));
-    console.log("ItemId: " + itemAddedQueue[i].itemid)
-    console.log("Product: " + itemAddedQueue[i].product);
-    console.log("Quantity: " + itemAddedQueue[i].quantity);
-    console.log("LastTouched: " + itemAddedQueue[i].lasttouched);
+    console.log(itemAddedQueue[i]);
   }
 }
 
 function getRemovedQueue() {
   for (var i = 0; i < itemRemovedQueue.length; i++) {
     console.log("Item " + (i+1));
-    console.log("ItemId: " + itemRemovedQueue[i].itemid)
-    console.log("Product: " + itemRemovedQueue[i].product);
-    console.log("Quantity: " + itemRemovedQueue[i].quantity);
-    console.log("Weight: " + itemRemovedQueue[i].weight);
-    console.log("LastTouched: " + itemRemovedQueue[i].lasttouched);
+    console.log(itemRemovedQueue[i]);
   }
+}
+
+function placeholder () {
+
 }
 
 module.exports = {
@@ -325,7 +310,7 @@ module.exports = {
 	},
 	getItemList: () => {
     cleanQueues();
-		getItems();
+    console.log(items);
 	},
 	addItem: (product, weight, quantity, ws) => {
     cleanQueues();
@@ -333,7 +318,7 @@ module.exports = {
 	},
   itemRemoved: (itemId, ws) => {
     cleanQueues();
-    itemRemoved(itemId, ws);
+    removeAnItem(itemId, ws);
   },
   getAQueue: () => {
     getAddedQueue();
@@ -346,8 +331,5 @@ module.exports = {
   },
   getAllUpcData: (callback) => {
     getUpcData(callback);
-  },
-  getAllUpcDataPromise: () => {
-    getUpcDataPromise();
   }
 }
