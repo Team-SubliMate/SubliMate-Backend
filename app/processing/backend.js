@@ -82,6 +82,13 @@ function updateItem(item, ws){
     .then(res => {getItems(setItems);});
 }
 
+function getDateString(date){
+  if (date == null){
+    return null;
+  }
+  return date.toLocaleDateString()
+}
+
 function putDatabase(product, weight, quantity, upc, imgurl, bestBefore, ws){
 	// TODO: the 1 in this query would need to be a shelfId
 
@@ -89,7 +96,7 @@ function putDatabase(product, weight, quantity, upc, imgurl, bestBefore, ws){
 		.then(res => {
       var itemId = res.rows[0]['getnextitemid'];
       var date = new Date();
-      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl, 'bestBefore': bestBefore.toLocaleDateString()};
+      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl, 'bestBefore': getDateString(bestBefore)};
 			sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': item}), ws);
       db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl, bestBefore])
               .then(res => { getItems(setItems); }).catch(e => {console.error(e.stack);});
@@ -169,7 +176,7 @@ function updateItemFromRemovedQueue(removedItem, weight, ws) {
     removedItem.quantity = 1;
     removedItem.weight = weight;
     if (removedItem.bestbefore) {
-        removedItem.bestbefore = removedItem.bestbefore.toLocaleDateString();
+        removedItem.bestbefore = getDateString(removedItem.bestbefore);
     }
     sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': removedItem}), ws);
     updateItem(removedItem);
