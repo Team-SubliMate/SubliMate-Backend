@@ -1,6 +1,13 @@
 const db = require('../db');
 var moment = require('moment');
 
+function mockBestBefore(product) {
+  return new Date();
+}
+
+// TODO: change this to be tristan's search
+const getBestBefore = mockBestBefore;
+
 const WEIGHT_ERROR = 0.05;
 const TIME_THRESHOLD = 15; //300 for real, 15 for testing, 30 for demo?
 
@@ -20,8 +27,8 @@ var soundList = {
 };
 
 // TODO: the shelfId 1 would need to change
-const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry, UPC, ImgUrl)' +
-					'Values (1, $1, $2, $3, $4, $5, $6, $7);'
+const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry, UPC, ImgUrl, BestBefore)' +
+					'Values (1, $1, $2, $3, $4, $5, $6, $7, $8);'
 
 const UPDATE_TEXT = 'UPDATE items SET Weight=$3, Quantity=$4, RemovedAt=$5 WHERE ItemId=$1 AND ShelfId=$2';
 
@@ -80,16 +87,16 @@ function updateItem(item, ws){
     })
 }
 
-function putDatabase(product, weight, quantity, upc, imgurl, ws){
+function putDatabase(product, weight, quantity, upc, imgurl, bestBefore, ws){
 	// TODO: the 1 in this query would need to be a shelfId
 
 	db.query('SELECT * FROM GetNextItemId(1)')
 		.then(res => {
       var itemId = res.rows[0]['getnextitemid'];
       var date = new Date();
-      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl};
+      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl, 'bestBefore': bestBefore};
 			ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
-      db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl])
+      db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl, bestBefore])
         .then(res => { getItems(setItems); }).catch(e => {console.error(e.stack);});
 		})
 		.catch(e => {
@@ -122,7 +129,8 @@ function getLocalItemsNearWeight(weight, ws) {
 
 // TODO: have this actually create things and put item into queue
 function manualEntry(item) {
-    itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl});
+  bestBefore = getBestBefore(item.product);
+  itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl, 'bestBefore': bestBefore});
 }
 
 function getItemFromLocal(itemid){
@@ -199,7 +207,7 @@ function weightChange(difference, ws) {
       }
       var itemInfo = itemAddedQueue.pop();
       weight = weight / itemInfo.quantity;
-      putDatabase(itemInfo.product, weight, itemInfo.quantity, itemInfo.upc, itemInfo.imgurl, ws)
+      putDatabase(itemInfo.product, weight, itemInfo.quantity, itemInfo.upc, itemInfo.imgurl, itemInfo.bestBefore, ws)
 		}
 	}
 	else if (weight < 0){
