@@ -32,8 +32,6 @@ const backend = require('../processing/backend.js');
 	passphrase: "sublimate"
 });*/
 
-var test = expiration.getExpiryDate("Frozen pretzels", client);
-
 const wss = new WebSocket.Server({port: 8090});
 
 const clients = {};

@@ -56,6 +56,11 @@ router.get('/inventory', function(req, res, next) {
       res.json(mock);
       return;
     }
+    for (var i = 0; i < result.rows.length; i++) {
+	if (result.rows[i].bestbefore) {
+	    result.rows[i].bestbefore = result.rows[i].bestbefore.toLocaleDateString();
+	}
+    }
 
     var data = {
       items: result.rows

@@ -88,7 +88,7 @@ function putDatabase(product, weight, quantity, upc, imgurl, bestBefore, ws){
 		.then(res => {
       var itemId = res.rows[0]['getnextitemid'];
       var date = new Date();
-      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl, 'bestBefore': bestBefore};
+      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl, 'bestBefore': bestBefore.toLocaleDateString()};
 			sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': item}), ws);
       db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl, bestBefore])
               .then(res => { getItems(setItems); }).catch(e => {console.error(e.stack);});
@@ -124,6 +124,9 @@ function getLocalItemsNearWeight(weight, ws) {
 // TODO: have this actually create things and put item into queue
 async function manualEntry(item) {
   bestBefore = await getBestBefore.getExpiryDate(item.product);
+  console.log("TEST");
+  console.log(item.product);
+  console.log(bestBefore);
   itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl, 'bestBefore': bestBefore});
 }
 
@@ -153,7 +156,10 @@ function updateItemFromRemovedQueue(removedItem, weight, ws) {
     console.log(removedItem);
     removedItem.quantity = 1;
     removedItem.weight = weight;
-    sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': item}), ws);
+    if (removedItem.bestbefore) {
+        removedItem.bestbefore = removedItem.bestbefore.toLocaleDateString();
+    }
+    sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': removedItem}), ws);
     updateItem(removedItem);
     items.push(removedItem);
     return;
