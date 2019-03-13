@@ -85,6 +85,7 @@ function updateItem(item, ws){
       console.error(e.stack);
       sendErrorToClient(ws, "Failed to update item in db");
     })
+    .then(res => {getItems(setItems);});
 }
 
 function putDatabase(product, weight, quantity, upc, imgurl, bestBefore, ws){
@@ -127,7 +128,18 @@ function getLocalItemsNearWeight(weight, ws) {
   return nearby;
 }
 
-// TODO: have this actually create things and put item into queue
+function getLocalItemMatchingProduct(descriptor, value){
+  var today = new Date();
+  today.setHours(0,0,0,0);
+  for (item in items){
+    console.log(items[item].entry);
+    if (items[item][descriptor] == value && items[item].entry.getTime() == today.getTime()){
+      return items[item];
+    }
+  }
+  return null;
+}
+
 function manualEntry(item) {
   bestBefore = getBestBefore(item.product);
   itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl, 'bestBefore': bestBefore});
@@ -159,9 +171,8 @@ function updateItemFromRemovedQueue(removedItem, weight, ws) {
     console.log(removedItem);
     removedItem.quantity = 1;
     removedItem.weight = weight;
-    ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
+    ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': removedItem}));
     updateItem(removedItem);
-    items.push(removedItem);
     return;
   }
 
@@ -207,6 +218,27 @@ function weightChange(difference, ws) {
       }
       var itemInfo = itemAddedQueue.pop();
       weight = weight / itemInfo.quantity;
+
+      var localItem = null;
+      if (itemInfo.upc != null){
+        console.log("checking matching upc...");
+        var localItem = getLocalItemMatchingProduct('upc', itemInfo.upc);
+      }
+      else {
+        console.log("checking matching product...");
+        var localItem = getLocalItemMatchingProduct('product', itemInfo.product);
+      }
+
+      if (localItem != null){
+        console.log("merging items..." + localItem.product);
+        localItem.weight = weight;
+        localItem.quantity += parseInt(itemInfo.quantity);
+        updateItem(localItem, ws);
+        ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': localItem.itemid, 'quantity': localItem.quantity}));
+        return;
+      }
+
+
       putDatabase(itemInfo.product, weight, itemInfo.quantity, itemInfo.upc, itemInfo.imgurl, itemInfo.bestBefore, ws)
 		}
 	}
@@ -239,10 +271,9 @@ function removeAnItem(itemid, ws){
   console.log("ITEM:::");
   console.log(item)
   item.quantity -= 1;
-  updateItem(item);
+  updateItem(item, ws);
   updateItemRemovedQueue(item);
   if (item.quantity < 1){
-    removeItemFromLocal(item.itemid);
     ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid}))
   }
   else{
@@ -334,5 +365,8 @@ module.exports = {
   },
   getAllUpcData: (callback) => {
     getUpcData(callback);
+  },
+  testDescriptor: (desc, value) => {
+    console.log(getLocalItemMatchingProduct(desc, value));
   }
 }

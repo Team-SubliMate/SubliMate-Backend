@@ -128,6 +128,13 @@ rl.on('line', (input) => {
 				}
 			}
 			break;
+		case 'tdesc':
+			if (split.length != 3){
+				console.log('Incorrect number of arguements, expecting 3');
+				break;
+			}
+			backend.testDescriptor(split[1], split[2]);
+			break;
 		default:
 			console.log(' Improper command. Try again.');
 			break;
