@@ -1,5 +1,5 @@
 
-//var fs = require('fs');
+// var fs = require('fs');
 //var https = require('https');
 
 /*var io = require('socket.io')(http);
@@ -23,6 +23,71 @@ const WebSocket = require('ws');
 const https = require('https');
 
 const backend = require('../processing/backend.js');
+
+var elasticsearch = require('elasticsearch');
+
+var client = new elasticsearch.Client({
+  host: 'localhost:9200',
+  log: 'trace'
+});
+
+var foodkeeper = require('../expiration/foodkeeper.json');
+var bulk = [];
+
+var body = {
+    size: 1,
+    from: 0, 
+  	"query": {
+	    "multi_match" : {
+	      "query":      "Classico Tomato & Basil Pasta Sauce",
+	      "type":       "best_fields",
+	      "fields":     [ "Name", "Keywords" ],
+	      "tie_breaker": 0.3
+	    }
+  	}
+	};
+
+// create a new index called product. If the index has already been created, this function fails safely
+client.indices.create({
+      index: 'product_expir'
+  }, function(error, response, status) {
+    if (error) {
+        //console.log(error);
+        client.search({index:'product_expir',  body:body, type:'product_list'})
+				.then(results => {
+				  console.log(results.hits.hits);
+				})
+				.catch(err=>{
+				  console.log(err)
+				});
+    } else {
+      console.log("created a new index");
+      foodkeeper.forEach(product =>{
+			  bulk.push({index:{ 
+						_index:"product_expir", 
+						_type:"product_list",
+					}          
+				})
+			  bulk.push(product)
+			})
+			//perform bulk indexing of the data passed
+			client.bulk({body:bulk}, function( err, response  ){ 
+				if( err ){ 
+				   console.log("Failed Bulk operation".red, err) 
+				} else { 
+				  console.log("Successfully imported".green);
+				  // perform the actual search passing in the index, the search query and the type
+					client.search({index:'product_expir',  body:body, type:'product_list'})
+					.then(results => {
+						console.log(results.hits.hits);
+					})
+					.catch(err=>{
+						 console.log(err)
+					});
+				}
+			});
+    }
+});
 
 //const server = new https.createServer({
 
@@ -131,7 +196,7 @@ function handleEvt(ws, evt) {
 
 wss.on('connection', function connection(ws) {
 	ws.on('message', function incoming(message) {
-		console.log('received: %s', message);
+		//console.log('received: %s', message);
 		evt = JSON.parse(message);
 		handleEvent(ws,evt);
 	});
