@@ -1,12 +1,7 @@
 const db = require('../db');
 var moment = require('moment');
 
-function mockBestBefore(product) {
-  return new Date();
-}
-
-// TODO: change this to be tristan's search
-const getBestBefore = mockBestBefore;
+const getBestBefore = require('../expiration/expiry_dates.js');
 
 const WEIGHT_ERROR = 0.05;
 const TIME_THRESHOLD = 15; //300 for real, 15 for testing, 30 for demo?
@@ -49,7 +44,6 @@ function cleanQueues() {
   }
 }
 
-<<<<<<< Updated upstream
 function sendErrorToClient(ws, message, additional) {
   sendAndLog(JSON.stringify({
     'type': 'FLOW_ERROR',
@@ -128,8 +122,8 @@ function getLocalItemsNearWeight(weight, ws) {
 }
 
 // TODO: have this actually create things and put item into queue
-function manualEntry(item) {
-  bestBefore = getBestBefore(item.product);
+async function manualEntry(item) {
+  bestBefore = await getBestBefore.getExpiryDate(item.product);
   itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl, 'bestBefore': bestBefore});
 }
 

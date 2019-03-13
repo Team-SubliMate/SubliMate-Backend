@@ -23,57 +23,6 @@ const WebSocket = require('ws');
 const https = require('https');
 
 const backend = require('../processing/backend.js');
-const expiration = require('../expiration/expiry_dates.js');
-
-var elasticsearch = require('elasticsearch');
-var client = new elasticsearch.Client({
-  host: 'localhost:9200',
-  log: 'error'
-});
-
-var foodkeeper = require('../expiration/foodkeeper.json');
-var bulk = [];
-
-// check if elastocsearch is set up, if not, set it up
-// probably could/should change to .then, but im lazy and this works
-const exists =  client.count({
-  index: 'product_expir'
-}, function(error, response,  status) {
-	if (error) {
-		if (response.error.type === 'index_not_found_exception') {
-			client.indices.create({
-		      index: 'product_expir'
-		  }, function(error, response, status) {
-		    if (error) {
-					console.log(error)
-		    } else {
-		    	// index created, push data into it
-		      console.log("created a new index");
-		      foodkeeper.forEach(product =>{
-					  bulk.push({index:{ 
-								_index:"product_expir", 
-								_type:"product_list",
-							}          
-						})
-					  bulk.push(product)
-					})
-					//perform bulk indexing of the data passed
-					client.bulk({body:bulk}, function( err, response  ){ 
-						if( err ){ 
-						   console.log("Failed Bulk operation".red, err) 
-						} else { 
-						  console.log("Successfully imported".green);
-						}
-					});
-		    }
-			});
-		}
-	} else {
-		if (response.count > 0) {
-			console.log('index exists with data in it');
-		}
-	}
-});
 
 //const server = new https.createServer({
 

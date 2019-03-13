@@ -1,3 +1,53 @@
+var elasticsearch = require('elasticsearch');
+var client = new elasticsearch.Client({
+  host: 'localhost:9200',
+  log: 'error'
+});
+
+var foodkeeper = require('../expiration/foodkeeper.json');
+var bulk = [];
+
+// check if elastocsearch is set up, if not, set it up
+// probably could/should change to .then, but im lazy and this works
+const exists =  client.count({
+  index: 'product_expir'
+}, function(error, response,  status) {
+  if (error) {
+    if (response.error.type === 'index_not_found_exception') {
+      client.indices.create({
+          index: 'product_expir'
+      }, function(error, response, status) {
+        if (error) {
+          console.log(error)
+        } else {
+          // index created, push data into it
+          console.log("created a new index");
+          foodkeeper.forEach(product =>{
+            bulk.push({index:{ 
+                _index:"product_expir", 
+                _type:"product_list",
+              }          
+            })
+            bulk.push(product)
+          })
+          //perform bulk indexing of the data passed
+          client.bulk({body:bulk}, function( err, response  ){ 
+            if( err ){ 
+               console.log("Failed Bulk operation".red, err) 
+            } else { 
+              console.log("Successfully imported".green);
+            }
+          });
+        }
+      });
+    }
+  } else {
+    if (response.count > 0) {
+      console.log('index exists with data in it');
+    }
+  }
+});
+
 function getDateFromItem(item) {
   var duration;
   var metric;
@@ -52,7 +102,7 @@ function getDateFromItem(item) {
   }
 }
 
-function getExpiryDate(title, client) {
+function getExpiryDate(title) {
   var body = {
     size: 1,
     from: 0, 
@@ -66,22 +116,19 @@ function getExpiryDate(title, client) {
     }
   };
 
-  client.search({index:'product_expir',  body:body, type:'product_list'})
+  return client.search({index:'product_expir',  body:body, type:'product_list'})
   .then(results => {
-    var itemExpirationInfo = results.hits.hits[0]._source;
-    console.log(itemExpirationInfo)
-    var ret = getDateFromItem(itemExpirationInfo);
-    console.log(ret);
+    if (results.hits.hits[0]) {
+      var itemExpirationInfo = results.hits.hits[0]._source;
+      var ret = getDateFromItem(itemExpirationInfo);
+      console.log(ret);
 
-    return results.hits.hits;
+      return ret;
+    }
   })
   .catch(err=>{
     console.log(err)
   });
 }
 
-module.exports = {
-  getExpiryDate: (title, client) => {
-    getExpiryDate(title, client);
-  }
-}
+module.exports.getExpiryDate = getExpiryDate;
