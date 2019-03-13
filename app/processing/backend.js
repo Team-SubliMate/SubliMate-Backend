@@ -238,7 +238,7 @@ function removeAnItem(itemid, ws){
     ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid}))
   }
   else{
-    ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity, 'where': 'here'}))
+    ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}))
   }
 }
 
