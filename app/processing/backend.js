@@ -127,21 +127,17 @@ function manualEntry(item) {
 
 function getItemFromLocal(itemid){
   for (item in items){
-    console.log("searching itemid " + items[item].itemid + " for " + itemid);
     if (items[item].itemid == itemid){
-      console.log('found item!');
       return items[item];
     }
   }
-  console.log("ERROR (not usually but maybe): didn't find item in local with id " + itemid);
+  console.log("SOMETIMES ERROR: didn't find item in local with id " + itemid);
   return null;
 }
 
 function removeItemFromLocal(itemid){
   for (item in items){
-    console.log("searching itemid " + items[item].itemid + " for " + itemid);
     if (items[item].itemid == itemid){
-      console.log('found item!');
      items.splice(item ,1);
     }
   }
@@ -256,7 +252,6 @@ function nearbyItems(nearbyItems, ws){
 	}
 	else if (nearbyItems.length == 1) {
   	console.log('only one matching item')
-    console.log(nearbyItems[0].itemid)
   	removeAnItem(nearbyItems[0].itemid, ws);
 	}
 	else if (nearbyItems.length > 1) {
