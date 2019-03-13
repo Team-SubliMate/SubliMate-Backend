@@ -36,7 +36,7 @@ const wss = new WebSocket.Server({port: 8090});
 
 const clients = {};
 
-var upcData = {};
+var upcData = [];
 function setUpcData(res) {
 	console.log(res);
 	upcData = res;
@@ -56,7 +56,7 @@ function checkIfInUpcCache(upc){
 
 // TODO: put the created item in a socket
 function lookupBarcode(upc) {
-	cached = checIfInUpcCache(upc)
+	cached = checkIfInUpcCache(upc)
 	if (cached != null) {
 		backend.manualEntry({'product': cached.product, 'quantity': '1', 'upc': upc, 'imgurl': cached.imgurl});
 		return;

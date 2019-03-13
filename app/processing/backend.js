@@ -55,12 +55,17 @@ function cleanQueues() {
 }
 
 function sendErrorToClient(ws, message, sound, additional) {
-  ws.send(JSON.stringify({
+  sendAndLog(JSON.stringify({
     'type': 'FLOW_ERROR',
     'message': message,
     'additional': additional,
     'sound': sound
-  }));
+  }), ws);
+}
+
+function sendAndLog(json, ws) {
+	console.log(json);
+	ws.send(json);
 }
 
 function getUpcData(callback) {
@@ -95,9 +100,9 @@ function putDatabase(product, weight, quantity, upc, imgurl, bestBefore, ws){
       var itemId = res.rows[0]['getnextitemid'];
       var date = new Date();
       var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl, 'bestBefore': bestBefore};
-			ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
+			sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': item}), ws);
       db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl, bestBefore])
-        .then(res => { getItems(setItems); }).catch(e => {console.error(e.stack);});
+              .then(res => { getItems(setItems); }).catch(e => {console.error(e.stack);});
 		})
 		.catch(e => {
 			console.error(e.stack);
@@ -159,7 +164,7 @@ function updateItemFromRemovedQueue(removedItem, weight, ws) {
     console.log(removedItem);
     removedItem.quantity = 1;
     removedItem.weight = weight;
-    ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
+    sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': item}), ws);
     updateItem(removedItem);
     items.push(removedItem);
     return;
@@ -168,7 +173,7 @@ function updateItemFromRemovedQueue(removedItem, weight, ws) {
   removedItem.lasttouched = moment(new Date());
   item.quantity += 1;
   item.weight = weight;
-  ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}));
+  sendAndLog(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}), ws);
 
   removedItem.weight = weight;
   removedItem.quantity -= 1;
@@ -243,10 +248,10 @@ function removeAnItem(itemid, ws){
   updateItemRemovedQueue(item);
   if (item.quantity < 1){
     removeItemFromLocal(item.itemid);
-    ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid}))
+    sendAndLog(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid}), ws)
   }
   else{
-    ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}))
+    sendAndLog(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}), ws)
   }
 }
 
@@ -265,7 +270,7 @@ function nearbyItems(nearbyItems, ws){
 	else if (nearbyItems.length > 1) {
   	//TODO send the choices to the android
   	console.log('multiple items found')
-    ws.send(JSON.stringify({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)}))
+    sendAndLog(JSON.stringify({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)}), ws)
 	}
 }
 
