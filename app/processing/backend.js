@@ -1,6 +1,13 @@
 const db = require('../db');
 var moment = require('moment');
 
+function mockBestBefore(product) {
+  return new Date();
+}
+
+// TODO: change this to be tristan's search
+const getBestBefore = mockBestBefore;
+
 const WEIGHT_ERROR = 0.05;
 const TIME_THRESHOLD = 15; //300 for real, 15 for testing, 30 for demo?
 
@@ -14,14 +21,9 @@ function setItems(res){
 
 getItems(setItems);
 
-var soundList = {
-  'BEEP': 'beep',
-  'ERROR': 'error'
-};
-
 // TODO: the shelfId 1 would need to change
-const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry, UPC, ImgUrl)' +
-					'Values (1, $1, $2, $3, $4, $5, $6, $7);'
+const INSERT_TEXT = 'INSERT INTO items(ShelfId, ItemId, Product, Weight, Quantity, Entry, UPC, ImgUrl, BestBefore)' +
+					'Values (1, $1, $2, $3, $4, $5, $6, $7, $8);'
 
 const UPDATE_TEXT = 'UPDATE items SET Weight=$3, Quantity=$4, RemovedAt=$5 WHERE ItemId=$1 AND ShelfId=$2';
 
@@ -47,13 +49,18 @@ function cleanQueues() {
   }
 }
 
-function sendErrorToClient(ws, message, sound, additional) {
-  ws.send(JSON.stringify({
+<<<<<<< Updated upstream
+function sendErrorToClient(ws, message, additional) {
+  sendAndLog(JSON.stringify({
     'type': 'FLOW_ERROR',
     'message': message,
-    'additional': additional,
-    'sound': sound
-  }));
+    'additional': additional
+  }), ws);
+}
+
+function sendAndLog(json, ws) {
+	console.log(json);
+	ws.send(json);
 }
 
 function getUpcData(callback) {
@@ -80,17 +87,17 @@ function updateItem(item, ws){
     })
 }
 
-function putDatabase(product, weight, quantity, upc, imgurl, ws){
+function putDatabase(product, weight, quantity, upc, imgurl, bestBefore, ws){
 	// TODO: the 1 in this query would need to be a shelfId
 
 	db.query('SELECT * FROM GetNextItemId(1)')
 		.then(res => {
       var itemId = res.rows[0]['getnextitemid'];
       var date = new Date();
-      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl};
-			ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
-      db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl])
-        .then(res => { getItems(setItems); }).catch(e => {console.error(e.stack);});
+      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl, 'bestBefore': bestBefore};
+			sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': item}), ws);
+      db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl, bestBefore])
+              .then(res => { getItems(setItems); }).catch(e => {console.error(e.stack);});
 		})
 		.catch(e => {
 			console.error(e.stack);
@@ -122,7 +129,8 @@ function getLocalItemsNearWeight(weight, ws) {
 
 // TODO: have this actually create things and put item into queue
 function manualEntry(item) {
-    itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl});
+  bestBefore = getBestBefore(item.product);
+  itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl, 'bestBefore': bestBefore});
 }
 
 function getItemFromLocal(itemid){
@@ -151,7 +159,7 @@ function updateItemFromRemovedQueue(removedItem, weight, ws) {
     console.log(removedItem);
     removedItem.quantity = 1;
     removedItem.weight = weight;
-    ws.send(JSON.stringify({'type': 'ITEM_ADDED','value': item}));
+    sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': item}), ws);
     updateItem(removedItem);
     items.push(removedItem);
     return;
@@ -160,7 +168,7 @@ function updateItemFromRemovedQueue(removedItem, weight, ws) {
   removedItem.lasttouched = moment(new Date());
   item.quantity += 1;
   item.weight = weight;
-  ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}));
+  sendAndLog(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}), ws);
 
   removedItem.weight = weight;
   removedItem.quantity -= 1;
@@ -193,13 +201,13 @@ function weightChange(difference, ws) {
       updateItemFromRemovedQueue(item, weight, ws);
     } else {
       if (itemAddedQueue.length < 1){
-        sendErrorToClient(ws, "Unexpected item in the weight area!", soundList['BEEP']);
+        sendErrorToClient(ws, "Unexpected item in the weight area!");
         console.log('Made a mistake! weight change without an item manually added')
         return;
       }
       var itemInfo = itemAddedQueue.pop();
       weight = weight / itemInfo.quantity;
-      putDatabase(itemInfo.product, weight, itemInfo.quantity, itemInfo.upc, itemInfo.imgurl, ws)
+      putDatabase(itemInfo.product, weight, itemInfo.quantity, itemInfo.upc, itemInfo.imgurl, itemInfo.bestBefore, ws)
 		}
 	}
 	else if (weight < 0){
@@ -235,10 +243,10 @@ function removeAnItem(itemid, ws){
   updateItemRemovedQueue(item);
   if (item.quantity < 1){
     removeItemFromLocal(item.itemid);
-    ws.send(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid}))
+    sendAndLog(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid}), ws)
   }
   else{
-    ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}))
+    sendAndLog(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}), ws)
   }
 }
 
@@ -247,7 +255,7 @@ function nearbyItems(nearbyItems, ws){
   console.log(nearbyItems)
 	// do something here. Remove the item or return a list if possible
 	if (nearbyItems.length < 1) {
-    sendErrorToClient(ws, "No items found with that weight.", soundList['BEEP']);
+    sendErrorToClient(ws, "No items found with that weight.");
     console.log('no items found')
 	}
 	else if (nearbyItems.length == 1) {
@@ -257,7 +265,7 @@ function nearbyItems(nearbyItems, ws){
 	else if (nearbyItems.length > 1) {
   	//TODO send the choices to the android
   	console.log('multiple items found')
-    ws.send(JSON.stringify({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)}))
+    sendAndLog(JSON.stringify({'type': 'WHICH_ITEM_REMOVED','value': nearbyItems.map(x => x.itemid)}), ws)
 	}
 }
 
