@@ -86,7 +86,12 @@ function getDateString(date){
   if (date == null){
     return null;
   }
-  return date.toLocaleDateString()
+  parsed = Date.parse(date);
+  if (parsed == NaN){
+    return null;
+  }
+  
+  return parsed.toLocaleDateString()
 }
 
 function putDatabase(product, weight, quantity, upc, imgurl, bestBefore, ws){
