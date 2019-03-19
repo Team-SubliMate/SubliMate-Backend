@@ -135,6 +135,9 @@ rl.on('line', (input) => {
 			}
 			backend.testDescriptor(split[1], split[2]);
 			break;
+		case 'reset':
+			backend.resetAll(ws);
+			break;
 		default:
 			console.log(' Improper command. Try again.');
 			break;

@@ -126,8 +126,9 @@ function handleEvt(ws, evt) {
 		case "STOP_HANDLING":
 			handleEvents = false;
 			break;
-		case "CLEAR_QUEUES":
-			backend.cleanQueue();
+		case "RESET":
+			backend.resetAll();
+			break;
 	}
 }
 

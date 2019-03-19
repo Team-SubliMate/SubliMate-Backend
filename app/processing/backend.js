@@ -337,8 +337,17 @@ function getRemovedQueue() {
   }
 }
 
-function placeholder () {
+function resetAll(ws) {
+  itemAddedQueue = [];
+  itemRemovedQueue = [];
+  items = [];
 
+  var now = new Date();
+
+  db.query('UPDATE items SET removedat = $1 WHERE removedat IS NULL', now)
+      .then(res => {
+          sendAndLog(JSON.stringify({'type': 'RESET_ACK'}), ws)
+      });
 }
 
 module.exports = {
@@ -380,5 +389,8 @@ module.exports = {
   },
   testDescriptor: (desc, value) => {
     console.log(getLocalItemMatchingProduct(desc, value));
+  },
+  resetAll: (ws) => {
+    resetAll(ws);
   }
 }
