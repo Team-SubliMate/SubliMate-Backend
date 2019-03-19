@@ -288,7 +288,7 @@ function removeAnItem(itemid, ws){
   var item = getItemFromLocal(itemid);
   console.log("ITEM:::");
   console.log(item)
-  item.weight -= item.weight / item.quantity;
+  //item.weight -= item.weight / item.quantity;
   item.quantity -= 1;
   updateItem(item, ws);
   updateItemRemovedQueue(item);
