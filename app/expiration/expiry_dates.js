@@ -120,6 +120,7 @@ function getExpiryDate(title) {
   .then(results => {
     if (results.hits.hits[0]) {
       var itemExpirationInfo = results.hits.hits[0]._source;
+      console.log(itemExpirationInfo);
       var ret = getDateFromItem(itemExpirationInfo);
 
       return ret;

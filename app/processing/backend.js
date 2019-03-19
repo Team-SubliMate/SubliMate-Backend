@@ -4,7 +4,7 @@ var moment = require('moment');
 const getBestBefore = require('../expiration/expiry_dates.js');
 
 const WEIGHT_ERROR = 0.05;
-const TIME_THRESHOLD = 30; //300 for real, 15 for testing, 30 for demo?
+const TIME_THRESHOLD = 60; //300 for real, 15 for testing, 30 for demo?
 
 var itemAddedQueue = [];
 var itemRemovedQueue = [];
@@ -197,7 +197,7 @@ function updateItemFromRemovedQueue(removedItem, weight, ws) {
   removedItem.lasttouched = moment(new Date());
   item.quantity += 1;
   item.weight = weight;
-  sendAndLog(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}), ws);
+  sendAndLog(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity, 'weight': item.weight}), ws);
 
   removedItem.weight = weight;
   removedItem.quantity -= 1;
@@ -252,7 +252,7 @@ function weightChange(difference, ws) {
         localItem.weight = weight;
         localItem.quantity += parseInt(itemInfo.quantity);
         updateItem(localItem, ws);
-        ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': localItem.itemid, 'quantity': localItem.quantity}));
+        ws.send(JSON.stringify({'type': 'ITEM_UPDATED','itemid': localItem.itemid, 'quantity': localItem.quantity, 'weight': localItem.weight}));
         return;
       }
 
@@ -288,6 +288,7 @@ function removeAnItem(itemid, ws){
   var item = getItemFromLocal(itemid);
   console.log("ITEM:::");
   console.log(item)
+  item.weight -= item.weight / item.quantity;
   item.quantity -= 1;
   updateItem(item, ws);
   updateItemRemovedQueue(item);
@@ -295,7 +296,7 @@ function removeAnItem(itemid, ws){
     sendAndLog(JSON.stringify({'type': 'ITEM_REMOVED','value': item.itemid}), ws)
   }
   else{
-    sendAndLog(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity}), ws)
+    sendAndLog(JSON.stringify({'type': 'ITEM_UPDATED','itemid': item.itemid, 'quantity': item.quantity, 'weight': item.weight}), ws)
   }
 }
 

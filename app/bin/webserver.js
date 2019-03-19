@@ -127,7 +127,7 @@ function handleEvt(ws, evt) {
 			handleEvents = false;
 			break;
 		case "RESET":
-			backend.resetAll();
+			backend.resetAll(clients["android"]);
 			break;
 	}
 }

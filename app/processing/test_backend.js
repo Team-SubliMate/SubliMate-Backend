@@ -75,11 +75,15 @@ rl.on('line', (input) => {
 			backend.manualEntry(item)
 			break;
 		case 'manual':
-			if (split.length != 3){
-				console.log('Incorrect number of arguements, expecting 3');
-				break;
+			//if (split.length != 3){
+			//	console.log('Incorrect number of arguements, expecting 3');
+			//	break;
+			//}
+			nameParts = []
+			for (var i = 1; i < split.length - 1; i++) {
+				nameParts.push(split[i]);
 			}
-			var item = new Item(split[1], split[2]);
+			var item = new Item(nameParts.join(" "), split[2]);
 			backend.manualEntry(item)
 			break;
 		case 'put':
