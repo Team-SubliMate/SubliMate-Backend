@@ -65,6 +65,7 @@ router.get('/inventory', function(req, res, next) {
     var data = {
       items: result.rows
     };
+    console.log(data);
 
     res.json(data);
   });

@@ -110,7 +110,7 @@ function getExpiryDate(title) {
       "multi_match" : {
         "query": title,
         "type": "best_fields",
-        "fields": [ "Name", "Keywords" ],
+        "fields": [ "Name^2", "Keywords" ],
         "tie_breaker": 0.3
       }
     }
@@ -121,7 +121,6 @@ function getExpiryDate(title) {
     if (results.hits.hits[0]) {
       var itemExpirationInfo = results.hits.hits[0]._source;
       var ret = getDateFromItem(itemExpirationInfo);
-      console.log(itemExpirationInfo, ret);
 
       return ret;
     }

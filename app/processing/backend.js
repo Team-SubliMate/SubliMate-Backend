@@ -4,7 +4,7 @@ var moment = require('moment');
 const getBestBefore = require('../expiration/expiry_dates.js');
 
 const WEIGHT_ERROR = 0.05;
-const TIME_THRESHOLD = 15; //300 for real, 15 for testing, 30 for demo?
+const TIME_THRESHOLD = 30; //300 for real, 15 for testing, 30 for demo?
 
 var itemAddedQueue = [];
 var itemRemovedQueue = [];
@@ -83,27 +83,33 @@ function updateItem(item, ws){
 }
 
 function getDateString(date){
-  if (date == null){
+  if (Object.prototype.toString.call(date) === '[object Date]') {
+    return date.toLocaleDateString();
+  }
+
+  var parsed = Date.parse(date);
+  if (!parsed){
     return null;
   }
-  parsed = Date.parse(date);
-  if (parsed == NaN){
+
+  if (typeof parsed.toLocaleDateString !== 'function') {
     return null;
   }
   
   return parsed.toLocaleDateString()
 }
 
-function putDatabase(product, weight, quantity, upc, imgurl, bestBefore, ws){
+function putDatabase(product, weight, quantity, upc, imgurl, bestbefore, ws){
 	// TODO: the 1 in this query would need to be a shelfId
 
 	db.query('SELECT * FROM GetNextItemId(1)')
 		.then(res => {
       var itemId = res.rows[0]['getnextitemid'];
       var date = new Date();
-      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl, 'bestBefore': getDateString(bestBefore)};
+      console.log("putDatabase ", bestbefore);
+      var item = {'shelfid': '1', 'itemid': itemId, 'product': product, 'weight': weight, 'quantity': quantity, 'entry': date, 'imgurl': imgurl, 'bestbefore': getDateString(bestbefore)};
 			sendAndLog(JSON.stringify({'type': 'ITEM_ADDED','value': item}), ws);
-      db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl, bestBefore])
+      db.query(INSERT_TEXT, [itemId, product, weight, quantity, date, upc, imgurl, bestbefore])
               .then(res => { getItems(setItems); }).catch(e => {console.error(e.stack);});
 		})
 		.catch(e => {
@@ -147,11 +153,11 @@ function getLocalItemMatchingProduct(descriptor, value){
 }
 
 async function manualEntry(item) {
-  bestBefore = await getBestBefore.getExpiryDate(item.product);
+  bestbefore = await getBestBefore.getExpiryDate(item.product);
   console.log("TEST");
   console.log(item.product);
-  console.log(bestBefore);
-  itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl, 'bestBefore': bestBefore});
+  console.log(bestbefore);
+  itemAddedQueue.push({'product': item.product, 'quantity': item.quantity, 'lasttouched': moment(new Date()), 'upc': item.upc, 'imgurl': item.imgurl, 'bestbefore': bestbefore});
 }
 
 function getItemFromLocal(itemid){
@@ -251,7 +257,7 @@ function weightChange(difference, ws) {
       }
 
 
-      putDatabase(itemInfo.product, weight, itemInfo.quantity, itemInfo.upc, itemInfo.imgurl, itemInfo.bestBefore, ws)
+      putDatabase(itemInfo.product, weight, itemInfo.quantity, itemInfo.upc, itemInfo.imgurl, itemInfo.bestbefore, ws)
 		}
 	}
 	else if (weight < 0){
