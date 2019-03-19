@@ -350,7 +350,7 @@ function resetAll(ws) {
 
   var now = new Date();
 
-  db.query('UPDATE items SET removedat = $1 WHERE removedat IS NULL', now)
+  db.query('UPDATE items SET removedat = $1 WHERE removedat IS NULL', [now])
       .then(res => {
           sendAndLog(JSON.stringify({'type': 'RESET_ACK'}), ws)
       });
